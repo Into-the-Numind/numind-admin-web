@@ -49,6 +49,24 @@ const router = createRouter({
           name: 'runs',
           component: () => import('@/views/RunsView.vue'),
           meta: { title: '运行监控' }
+        },
+        {
+          path: 'billing',
+          name: 'billing-overview',
+          component: () => import('@/views/BillingOverviewView.vue'),
+          meta: { title: '用量概览' }
+        },
+        {
+          path: 'billing/records',
+          name: 'billing-records',
+          component: () => import('@/views/UsageRecordsView.vue'),
+          meta: { title: '用量明细' }
+        },
+        {
+          path: 'billing/pricing',
+          name: 'billing-pricing',
+          component: () => import('@/views/PricingRulesView.vue'),
+          meta: { title: '定价管理' }
         }
       ]
     },

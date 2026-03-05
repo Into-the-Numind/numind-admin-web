@@ -7,6 +7,9 @@ import {
   Users,
   FileText,
   PlayCircle,
+  BarChart3,
+  Receipt,
+  Settings,
   PanelLeftClose,
   PanelLeft,
   LogOut
@@ -36,11 +39,19 @@ const navItems = [
   { name: 'dashboard', label: '仪表盘', icon: LayoutDashboard, path: '/' },
   { name: 'users', label: '用户管理', icon: Users, path: '/users' },
   { name: 'templates', label: 'SOP模板', icon: FileText, path: '/templates' },
-  { name: 'runs', label: '运行监控', icon: PlayCircle, path: '/runs' }
+  { name: 'runs', label: '运行监控', icon: PlayCircle, path: '/runs' },
+  { name: 'billing-overview', label: '用量概览', icon: BarChart3, path: '/billing' },
+  { name: 'billing-records', label: '用量明细', icon: Receipt, path: '/billing/records' },
+  { name: 'billing-pricing', label: '定价管理', icon: Settings, path: '/billing/pricing' }
 ]
 
 function isActive(item: typeof navItems[0]) {
   if (item.path === '/') return route.path === '/'
+  // 如果存在更具体的子路由匹配，当前项不应高亮
+  const hasMoreSpecific = navItems.some(
+    other => other.path !== item.path && other.path.startsWith(item.path) && route.path.startsWith(other.path)
+  )
+  if (hasMoreSpecific) return false
   return route.path.startsWith(item.path)
 }
 
