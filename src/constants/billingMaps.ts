@@ -103,14 +103,14 @@ export const operationFilterOptions = [
 
 // 费用格式化
 export function formatCost(cents: number): string {
-  if (cents >= 100) return '\u00A5' + (cents / 100).toFixed(2)
+  if (cents >= 100) return '¥' + (cents / 100).toFixed(2)
   if (cents > 0) return cents + ' 分'
-  return '\u00A50.00'
+  return '¥0.00'
 }
 
 // 毛利率格式化
 export function formatMarginRate(cost: number, revenue: number): string {
-  if (revenue === 0) return '\u2014'
+  if (revenue === 0) return '—'
   const rate = ((revenue - cost) / revenue) * 100
   return rate.toFixed(1) + '%'
 }

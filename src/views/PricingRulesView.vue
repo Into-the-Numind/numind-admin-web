@@ -94,7 +94,7 @@ function ruleMargin(rule: PricingRule): string {
   if (rule.price_per_gb > 0 && rule.sell_price_per_gb > 0) {
     return formatMarginRate(rule.price_per_gb, rule.sell_price_per_gb)
   }
-  return '\u2014'
+  return '—'
 }
 
 async function fetchRules() {
