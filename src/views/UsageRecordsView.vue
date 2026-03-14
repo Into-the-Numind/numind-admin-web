@@ -7,7 +7,7 @@ import AppSelect from '@/components/common/AppSelect.vue'
 import { Search } from 'lucide-vue-next'
 import { formatDateTime } from '@/utils/format'
 import {
-  serviceTypeLabels, operationLabels, formatCost,
+  serviceTypeLabels, operationLabels, providerLabels, formatCost,
   serviceTypeFilterOptions, providerFilterOptions, operationFilterOptions
 } from '@/constants/billingMaps'
 
@@ -33,7 +33,8 @@ const columns: Column[] = [
   { key: 'model', title: '模型', width: '140px' },
   { key: 'operation', title: '操作', width: '120px' },
   { key: 'total_tokens', title: 'Tokens', width: '80px', align: 'right' },
-  { key: 'cost_cents', title: '费用', width: '80px', align: 'right' },
+  { key: 'cost_cents', title: '成本', width: '80px', align: 'right' },
+  { key: 'revenue_cents', title: '收入', width: '80px', align: 'right' },
   { key: 'created_at', title: '时间', width: '140px' }
 ]
 
@@ -119,6 +120,10 @@ onMounted(fetchRecords)
         <span class="label-badge">{{ serviceTypeLabels[(row as UsageRecord).service_type] || (row as UsageRecord).service_type }}</span>
       </template>
 
+      <template #cell-provider="{ row }">
+        <span>{{ providerLabels[(row as UsageRecord).provider] || (row as UsageRecord).provider }}</span>
+      </template>
+
       <template #cell-operation="{ row }">
         <span>{{ operationLabels[(row as UsageRecord).operation] || (row as UsageRecord).operation }}</span>
       </template>
@@ -129,6 +134,10 @@ onMounted(fetchRecords)
 
       <template #cell-cost_cents="{ row }">
         <span class="text-mono">{{ formatCost((row as UsageRecord).cost_cents) }}</span>
+      </template>
+
+      <template #cell-revenue_cents="{ row }">
+        <span class="text-mono text-revenue">{{ formatCost((row as UsageRecord).revenue_cents) }}</span>
       </template>
 
       <template #cell-created_at="{ row }">
@@ -181,6 +190,11 @@ onMounted(fetchRecords)
 .text-mono {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.text-revenue {
+  color: var(--primary);
 }
 
 .text-muted {
