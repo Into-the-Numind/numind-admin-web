@@ -11,7 +11,10 @@ import AppSelect from '@/components/common/AppSelect.vue'
 import ConfirmModal from '@/components/common/ConfirmModal.vue'
 import { Plus, Pencil, Trash2 } from 'lucide-vue-next'
 import { useToast } from '@/composables/useToast'
-import { serviceTypeLabels, serviceTypeFormOptions, providerFormOptions } from '@/constants/billingMaps'
+import {
+  serviceTypeLabels, serviceTypeFormOptions, providerFormOptions, providerLabels,
+  formatMarginRate
+} from '@/constants/billingMaps'
 
 const toast = useToast()
 const rules = ref<PricingRule[]>([])
@@ -34,10 +37,14 @@ interface PricingForm {
   output_price_per_mtok: number
   price_per_call: number
   price_per_gb: number
+  sell_input_price_per_mtok: number
+  sell_output_price_per_mtok: number
+  sell_price_per_call: number
+  sell_price_per_gb: number
   is_active: boolean
 }
 
-const form = ref<PricingForm>({
+const defaultForm: PricingForm = {
   service_type: '',
   provider: '',
   model: '',
@@ -45,8 +52,14 @@ const form = ref<PricingForm>({
   output_price_per_mtok: 0,
   price_per_call: 0,
   price_per_gb: 0,
+  sell_input_price_per_mtok: 0,
+  sell_output_price_per_mtok: 0,
+  sell_price_per_call: 0,
+  sell_price_per_gb: 0,
   is_active: true
-})
+}
+
+const form = ref<PricingForm>({ ...defaultForm })
 
 // Delete confirm
 const confirmVisible = ref(false)
@@ -54,17 +67,35 @@ const pendingDeleteId = ref(0)
 const pendingDeleteName = ref('')
 
 const columns: Column[] = [
-  { key: 'service_type', title: '服务类型', width: '110px' },
+  { key: 'service_type', title: '服务类型', width: '100px' },
   { key: 'provider', title: '供应商', width: '100px' },
-  { key: 'model', title: '模型', width: '160px' },
-  { key: 'input_price_per_mtok', title: '输入价/百万Token', width: '140px', align: 'right' },
-  { key: 'output_price_per_mtok', title: '输出价/百万Token', width: '140px', align: 'right' },
-  { key: 'price_per_call', title: '单次价格(分)', width: '110px', align: 'right' },
-  { key: 'price_per_gb', title: 'GB价格(分)', width: '110px', align: 'right' },
-  { key: 'is_active', title: '状态', width: '80px' },
-  { key: 'actions', title: '操作', width: '120px' }
+  { key: 'model', title: '模型', width: '140px' },
+  { key: 'input_price_per_mtok', title: '成本(输入/M)', width: '110px', align: 'right' },
+  { key: 'output_price_per_mtok', title: '成本(输出/M)', width: '110px', align: 'right' },
+  { key: 'price_per_call', title: '成本(每次)', width: '90px', align: 'right' },
+  { key: 'price_per_gb', title: '成本(每GB)', width: '90px', align: 'right' },
+  { key: 'sell_input_price_per_mtok', title: '售价(输入/M)', width: '110px', align: 'right' },
+  { key: 'sell_output_price_per_mtok', title: '售价(输出/M)', width: '110px', align: 'right' },
+  { key: 'sell_price_per_call', title: '售价(每次)', width: '90px', align: 'right' },
+  { key: 'sell_price_per_gb', title: '售价(每GB)', width: '90px', align: 'right' },
+  { key: 'margin', title: '毛利率', width: '80px', align: 'right' },
+  { key: 'is_active', title: '状态', width: '70px' },
+  { key: 'actions', title: '操作', width: '100px' }
 ]
 
+function ruleMargin(rule: PricingRule): string {
+  // Use token-based margin if available, otherwise per-call
+  if (rule.input_price_per_mtok > 0 && rule.sell_input_price_per_mtok > 0) {
+    return formatMarginRate(rule.input_price_per_mtok, rule.sell_input_price_per_mtok)
+  }
+  if (rule.price_per_call > 0 && rule.sell_price_per_call > 0) {
+    return formatMarginRate(rule.price_per_call, rule.sell_price_per_call)
+  }
+  if (rule.price_per_gb > 0 && rule.sell_price_per_gb > 0) {
+    return formatMarginRate(rule.price_per_gb, rule.sell_price_per_gb)
+  }
+  return '\u2014'
+}
 
 async function fetchRules() {
   loading.value = true
@@ -86,16 +117,7 @@ async function fetchRules() {
 function openCreate() {
   isEdit.value = false
   editingId.value = 0
-  form.value = {
-    service_type: '',
-    provider: '',
-    model: '',
-    input_price_per_mtok: 0,
-    output_price_per_mtok: 0,
-    price_per_call: 0,
-    price_per_gb: 0,
-    is_active: true
-  }
+  form.value = { ...defaultForm }
   modalVisible.value = true
 }
 
@@ -110,6 +132,10 @@ function openEdit(rule: PricingRule) {
     output_price_per_mtok: rule.output_price_per_mtok,
     price_per_call: rule.price_per_call,
     price_per_gb: rule.price_per_gb,
+    sell_input_price_per_mtok: rule.sell_input_price_per_mtok,
+    sell_output_price_per_mtok: rule.sell_output_price_per_mtok,
+    sell_price_per_call: rule.sell_price_per_call,
+    sell_price_per_gb: rule.sell_price_per_gb,
     is_active: rule.is_active
   }
   modalVisible.value = true
@@ -132,6 +158,10 @@ async function submitForm() {
         output_price_per_mtok: form.value.output_price_per_mtok,
         price_per_call: form.value.price_per_call,
         price_per_gb: form.value.price_per_gb,
+        sell_input_price_per_mtok: form.value.sell_input_price_per_mtok,
+        sell_output_price_per_mtok: form.value.sell_output_price_per_mtok,
+        sell_price_per_call: form.value.sell_price_per_call,
+        sell_price_per_gb: form.value.sell_price_per_gb,
         is_active: form.value.is_active
       }
       await updatePricingRuleApi(editingId.value, updates)
@@ -151,7 +181,7 @@ async function submitForm() {
 
 function confirmDelete(rule: PricingRule) {
   pendingDeleteId.value = rule.id
-  pendingDeleteName.value = `${serviceTypeLabels[rule.service_type] || rule.service_type} / ${rule.provider} / ${rule.model || '默认'}`
+  pendingDeleteName.value = `${serviceTypeLabels[rule.service_type] || rule.service_type} / ${providerLabels[rule.provider] || rule.provider} / ${rule.model || '默认'}`
   confirmVisible.value = true
 }
 
@@ -209,6 +239,10 @@ onMounted(fetchRules)
         <span class="label-badge">{{ serviceTypeLabels[(row as PricingRule).service_type] || (row as PricingRule).service_type }}</span>
       </template>
 
+      <template #cell-provider="{ row }">
+        <span>{{ providerLabels[(row as PricingRule).provider] || (row as PricingRule).provider }}</span>
+      </template>
+
       <template #cell-input_price_per_mtok="{ value }">
         <span class="text-mono">{{ Number(value).toFixed(2) }}</span>
       </template>
@@ -223,6 +257,26 @@ onMounted(fetchRules)
 
       <template #cell-price_per_gb="{ value }">
         <span class="text-mono">{{ Number(value).toFixed(2) }}</span>
+      </template>
+
+      <template #cell-sell_input_price_per_mtok="{ value }">
+        <span class="text-mono text-sell">{{ Number(value).toFixed(2) }}</span>
+      </template>
+
+      <template #cell-sell_output_price_per_mtok="{ value }">
+        <span class="text-mono text-sell">{{ Number(value).toFixed(2) }}</span>
+      </template>
+
+      <template #cell-sell_price_per_call="{ value }">
+        <span class="text-mono text-sell">{{ Number(value).toFixed(4) }}</span>
+      </template>
+
+      <template #cell-sell_price_per_gb="{ value }">
+        <span class="text-mono text-sell">{{ Number(value).toFixed(2) }}</span>
+      </template>
+
+      <template #cell-margin="{ row }">
+        <span class="text-mono text-margin">{{ ruleMargin(row as PricingRule) }}</span>
       </template>
 
       <template #cell-is_active="{ row }">
@@ -282,6 +336,11 @@ onMounted(fetchRules)
                 <label class="form-label">模型</label>
                 <AppInput v-model="form.model" placeholder="模型名称（留空为默认规则）" />
               </div>
+
+              <!-- 成本价 Section -->
+              <div class="form-group form-group--full">
+                <div class="form-section-header">成本价</div>
+              </div>
               <div class="form-group">
                 <label class="form-label">输入价格 (分/百万Token)</label>
                 <input v-model.number="form.input_price_per_mtok" type="number" step="0.01" class="num-input" placeholder="0" />
@@ -298,6 +357,28 @@ onMounted(fetchRules)
                 <label class="form-label">GB 价格 (分)</label>
                 <input v-model.number="form.price_per_gb" type="number" step="0.01" class="num-input" placeholder="0" />
               </div>
+
+              <!-- 售价 Section -->
+              <div class="form-group form-group--full">
+                <div class="form-section-header">售价</div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">输入售价 (分/百万Token)</label>
+                <input v-model.number="form.sell_input_price_per_mtok" type="number" step="0.01" class="num-input" placeholder="0" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">输出售价 (分/百万Token)</label>
+                <input v-model.number="form.sell_output_price_per_mtok" type="number" step="0.01" class="num-input" placeholder="0" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">单次调用售价 (分)</label>
+                <input v-model.number="form.sell_price_per_call" type="number" step="0.0001" class="num-input" placeholder="0" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">GB 售价 (分)</label>
+                <input v-model.number="form.sell_price_per_gb" type="number" step="0.01" class="num-input" placeholder="0" />
+              </div>
+
               <div class="form-group form-group--full">
                 <label class="form-label">
                   <input v-model="form.is_active" type="checkbox" class="checkbox" />
@@ -339,6 +420,16 @@ onMounted(fetchRules)
 .text-mono {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.text-sell {
+  color: var(--primary);
+}
+
+.text-margin {
+  color: var(--success);
+  font-weight: 600;
 }
 
 .action-buttons {
@@ -369,7 +460,7 @@ onMounted(fetchRules)
 }
 
 .modal-card--wide {
-  max-width: 560px;
+  max-width: 600px;
 }
 
 .form-grid {
@@ -391,6 +482,15 @@ onMounted(fetchRules)
   font-weight: 500;
   color: var(--text);
   margin-bottom: var(--space-2);
+}
+
+.form-section-header {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--gray-200);
+  margin-top: var(--space-2);
 }
 
 .num-input {

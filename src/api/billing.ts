@@ -6,17 +6,22 @@ export interface BillingOverview {
   today_cost_cents: number
   month_cost_cents: number
   total_cost_cents: number
+  today_revenue_cents: number
+  month_revenue_cents: number
+  total_revenue_cents: number
   today_call_count: number
   month_call_count: number
   total_call_count: number
   by_service_type: ServiceTypeStat[]
   by_operation: OperationStat[]
+  by_provider: ProviderStat[]
 }
 
 export interface ServiceTypeStat {
   service_type: string
   call_count: number
   cost_cents: number
+  revenue_cents: number
   total_tokens: number
 }
 
@@ -24,6 +29,14 @@ export interface OperationStat {
   operation: string
   call_count: number
   cost_cents: number
+  revenue_cents: number
+}
+
+export interface ProviderStat {
+  provider: string
+  call_count: number
+  cost_cents: number
+  revenue_cents: number
 }
 
 export interface UsageRecord {
@@ -40,6 +53,7 @@ export interface UsageRecord {
   bytes_uploaded: number
   item_count: number
   cost_cents: number
+  revenue_cents: number
   biz_ref_type: string
   biz_ref_id: number
   is_fallback: boolean
@@ -92,6 +106,10 @@ export interface PricingRule {
   output_price_per_mtok: number
   price_per_call: number
   price_per_gb: number
+  sell_input_price_per_mtok: number
+  sell_output_price_per_mtok: number
+  sell_price_per_call: number
+  sell_price_per_gb: number
   is_active: boolean
   created_at: string
   updated_at: string
@@ -111,6 +129,10 @@ export interface CreatePricingRuleRequest {
   output_price_per_mtok?: number
   price_per_call?: number
   price_per_gb?: number
+  sell_input_price_per_mtok?: number
+  sell_output_price_per_mtok?: number
+  sell_price_per_call?: number
+  sell_price_per_gb?: number
   is_active?: boolean
 }
 
@@ -122,6 +144,10 @@ export interface UpdatePricingRuleRequest {
   output_price_per_mtok?: number
   price_per_call?: number
   price_per_gb?: number
+  sell_input_price_per_mtok?: number
+  sell_output_price_per_mtok?: number
+  sell_price_per_call?: number
+  sell_price_per_gb?: number
   is_active?: boolean
 }
 
