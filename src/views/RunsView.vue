@@ -22,13 +22,15 @@ const detailLoading = ref(false)
 const nodeRuns = ref<NodeRun[]>([])
 
 const columns: Column[] = [
-  { key: 'id', title: 'ID', width: '60px' },
+  { key: 'id', title: 'Run ID', width: '80px' },
   { key: 'template_name', title: '模板', width: '160px' },
   { key: 'user_nickname', title: '用户', width: '120px' },
   { key: 'status', title: '状态', width: '90px' },
   { key: 'started_at', title: '开始时间', width: '150px' },
   { key: 'finished_at', title: '结束时间', width: '150px' },
   { key: 'duration', title: '耗时', width: '80px', align: 'right' },
+  { key: 'total_tokens', title: 'Tokens', width: '100px', align: 'right' },
+  { key: 'cost_cents', title: '成本', width: '90px', align: 'right' },
   { key: 'expand', title: '', width: '40px' }
 ]
 
@@ -142,6 +144,14 @@ onMounted(fetchRuns)
           <Clock :size="12" />
           {{ calcDuration(row as SopRun) }}
         </span>
+      </template>
+
+      <template #cell-total_tokens="{ row }">
+        <span class="text-muted">{{ ((row as SopRun).total_tokens || 0).toLocaleString() }}</span>
+      </template>
+
+      <template #cell-cost_cents="{ row }">
+        <span class="text-muted">¥{{ (((row as SopRun).cost_cents || 0) / 100).toFixed(2) }}</span>
       </template>
 
       <template #cell-expand="{ row }">

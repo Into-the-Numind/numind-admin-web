@@ -63,6 +63,12 @@ const router = createRouter({
           meta: { title: '用量明细' }
         },
         {
+          path: 'billing/analytics',
+          name: 'billing-analytics',
+          component: () => import('@/views/PricingAnalyticsView.vue'),
+          meta: { title: '消费分析' }
+        },
+        {
           path: 'billing/pricing',
           name: 'billing-pricing',
           component: () => import('@/views/PricingRulesView.vue'),

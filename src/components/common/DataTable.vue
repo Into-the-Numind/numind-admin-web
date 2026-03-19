@@ -1,6 +1,6 @@
 <script setup lang="ts" generic="T extends Record<string, any>">
-import { computed } from 'vue'
-import { ChevronLeft, ChevronRight, Inbox } from 'lucide-vue-next'
+import { computed, ref } from 'vue'
+import { ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, Inbox } from 'lucide-vue-next'
 
 export interface Column {
   key: string
@@ -51,10 +51,20 @@ const pageNumbers = computed(() => {
   return pages
 })
 
+const jumpInput = ref('')
+
 function goToPage(page: number) {
   if (page >= 1 && page <= totalPages.value && page !== props.page) {
     emit('update:page', page)
   }
+}
+
+function handleJump() {
+  const p = parseInt(jumpInput.value, 10)
+  if (!isNaN(p)) {
+    goToPage(p)
+  }
+  jumpInput.value = ''
 }
 </script>
 
@@ -68,7 +78,7 @@ function goToPage(page: number) {
               v-for="col in columns"
               :key="col.key"
               :style="col.width ? { width: col.width } : {}"
-              :class="`align-${col.align || 'left'}`"
+              :class="`align-${col.align || 'center'}`"
             >
               {{ col.title }}
             </th>
@@ -103,7 +113,7 @@ function goToPage(page: number) {
               <td
                 v-for="col in columns"
                 :key="col.key"
-                :class="`align-${col.align || 'left'}`"
+                :class="`align-${col.align || 'center'}`"
               >
                 <slot :name="`cell-${col.key}`" :row="row" :value="row[col.key]">
                   {{ row[col.key] ?? '-' }}
@@ -120,6 +130,14 @@ function goToPage(page: number) {
         共 {{ total }} 条
       </span>
       <div class="pagination__controls">
+        <button
+          class="pagination__btn"
+          :disabled="page <= 1"
+          aria-label="首页"
+          @click="goToPage(1)"
+        >
+          <ChevronsLeft :size="16" />
+        </button>
         <button
           class="pagination__btn"
           :disabled="page <= 1"
@@ -145,6 +163,24 @@ function goToPage(page: number) {
         >
           <ChevronRight :size="16" />
         </button>
+        <button
+          class="pagination__btn"
+          :disabled="page >= totalPages"
+          aria-label="尾页"
+          @click="goToPage(totalPages)"
+        >
+          <ChevronsRight :size="16" />
+        </button>
+        <div class="pagination__jump">
+          <input
+            v-model="jumpInput"
+            class="pagination__jump-input"
+            type="text"
+            :placeholder="`${page}/${totalPages}`"
+            @keydown.enter="handleJump"
+          />
+          <button class="pagination__btn" @click="handleJump">跳转</button>
+        </div>
       </div>
     </div>
   </div>
@@ -293,5 +329,30 @@ function goToPage(page: number) {
 .pagination__btn--active:hover {
   background: var(--primary-hover) !important;
   border-color: var(--primary-hover) !important;
+}
+
+.pagination__jump {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-left: var(--space-2);
+}
+
+.pagination__jump-input {
+  width: 56px;
+  height: 32px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  color: var(--text);
+  background: var(--surface);
+  text-align: center;
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+
+.pagination__jump-input:focus {
+  border-color: var(--primary);
 }
 </style>

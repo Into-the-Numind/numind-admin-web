@@ -10,6 +10,7 @@ import {
   BarChart3,
   Receipt,
   Settings,
+  TrendingUp,
   PanelLeftClose,
   PanelLeft,
   LogOut
@@ -42,6 +43,7 @@ const navItems = [
   { name: 'runs', label: '运行监控', icon: PlayCircle, path: '/runs' },
   { name: 'billing-overview', label: '用量概览', icon: BarChart3, path: '/billing' },
   { name: 'billing-records', label: '用量明细', icon: Receipt, path: '/billing/records' },
+  { name: 'billing-analytics', label: '消费分析', icon: TrendingUp, path: '/billing/analytics' },
   { name: 'billing-pricing', label: '定价管理', icon: Settings, path: '/billing/pricing' }
 ]
 

@@ -12,6 +12,7 @@ export interface SopRun {
   template: { name: string }
   user: { nickname: string }
   total_tokens?: number
+  cost_cents?: number
 }
 
 export interface RunsResponse {
