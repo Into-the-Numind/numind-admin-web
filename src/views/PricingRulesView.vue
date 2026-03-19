@@ -2,7 +2,8 @@
 import { ref, onMounted, watch } from 'vue'
 import {
   getPricingRulesApi, createPricingRuleApi, updatePricingRuleApi, deletePricingRuleApi,
-  type PricingRule, type UpdatePricingRuleRequest
+  getTiersApi, replaceTiersApi,
+  type PricingRule, type UpdatePricingRuleRequest, type PricingRuleTier, type TierInput
 } from '@/api/billing'
 import DataTable, { type Column } from '@/components/common/DataTable.vue'
 import AppButton from '@/components/common/AppButton.vue'
@@ -70,6 +71,7 @@ const columns: Column[] = [
   { key: 'service_type', title: '服务类型', width: '100px' },
   { key: 'provider', title: '供应商', width: '100px' },
   { key: 'model', title: '模型', width: '140px' },
+  { key: 'billing_mode', title: '计费模式', width: '100px' },
   { key: 'input_price_per_mtok', title: '成本(输入/M)', width: '110px', align: 'right' },
   { key: 'output_price_per_mtok', title: '成本(输出/M)', width: '110px', align: 'right' },
   { key: 'price_per_call', title: '成本(每次)', width: '90px', align: 'right' },
@@ -212,6 +214,57 @@ async function toggleActive(rule: PricingRule) {
 
 watch(page, fetchRules)
 onMounted(fetchRules)
+
+// 分段配置抽屉
+const tierDrawerVisible = ref(false)
+const tierRuleId = ref<number | null>(null)
+const tierRuleName = ref('')
+const tiers = ref<PricingRuleTier[]>([])
+const tierLoading = ref(false)
+const tierSaving = ref(false)
+
+async function openTierDrawer(rule: PricingRule) {
+  tierRuleId.value = rule.id
+  tierRuleName.value = `${rule.provider} / ${rule.model || rule.service_type}`
+  tierDrawerVisible.value = true
+  tierLoading.value = true
+  try {
+    tiers.value = await getTiersApi(rule.id)
+  } catch (e) {
+    toast.error('加载分段失败')
+  } finally {
+    tierLoading.value = false
+  }
+}
+
+function addTierRow(tokenType: 'input' | 'output') {
+  tiers.value.push({
+    id: 0, rule_id: tierRuleId.value!, token_type: tokenType,
+    min_tokens: 0, max_tokens: null, cost_per_mtok: 0, sell_per_mtok: 0
+  })
+}
+
+function removeTierRow(index: number) {
+  tiers.value.splice(index, 1)
+}
+
+async function saveTiers() {
+  if (!tierRuleId.value || tierSaving.value) return
+  tierSaving.value = true
+  try {
+    const payload: TierInput[] = tiers.value.map(t => ({
+      token_type: t.token_type, min_tokens: t.min_tokens,
+      max_tokens: t.max_tokens, cost_per_mtok: t.cost_per_mtok, sell_per_mtok: t.sell_per_mtok
+    }))
+    await replaceTiersApi(tierRuleId.value, payload)
+    toast.success('分段配置已保存')
+    tierDrawerVisible.value = false
+  } catch (e) {
+    toast.error('保存失败')
+  } finally {
+    tierSaving.value = false
+  }
+}
 </script>
 
 <template>
@@ -237,6 +290,11 @@ onMounted(fetchRules)
     >
       <template #cell-service_type="{ row }">
         <span class="label-badge">{{ serviceTypeLabels[(row as PricingRule).service_type] || (row as PricingRule).service_type }}</span>
+      </template>
+
+      <template #cell-billing_mode="{ row }">
+        <span v-if="(row as any).billing_mode === 'tiered_token'" class="label-badge label-badge--purple">分段计费</span>
+        <span v-else class="label-badge">标准</span>
       </template>
 
       <template #cell-provider="{ row }">
@@ -291,6 +349,13 @@ onMounted(fetchRules)
 
       <template #cell-actions="{ row }">
         <div class="action-buttons">
+          <button
+            v-if="(row as any).billing_mode === 'tiered_token'"
+            @click.stop="openTierDrawer(row as PricingRule)"
+            class="text-purple-600 hover:text-purple-800 text-sm"
+          >
+            分段配置
+          </button>
           <AppButton size="sm" variant="ghost" :disabled="processing" @click.stop="openEdit(row as PricingRule)">
             <Pencil :size="14" />
           </AppButton>
@@ -397,6 +462,90 @@ onMounted(fetchRules)
         </div>
       </Transition>
     </Teleport>
+
+    <!-- 分段配置抽屉 -->
+    <Teleport to="body">
+      <div v-if="tierDrawerVisible" class="fixed inset-0 z-50 flex justify-end">
+        <div class="fixed inset-0 bg-black/40" @click="tierDrawerVisible = false" />
+        <div class="relative w-[640px] bg-white h-full shadow-xl flex flex-col">
+          <div class="flex items-center justify-between px-6 py-4 border-b">
+            <div>
+              <div class="font-semibold">分段定价配置</div>
+              <div class="text-sm text-gray-500">{{ tierRuleName }}</div>
+            </div>
+            <button @click="tierDrawerVisible = false" class="text-gray-400 hover:text-gray-600">✕</button>
+          </div>
+
+          <div class="flex-1 overflow-y-auto p-6">
+            <div v-if="tierLoading" class="text-center py-12 text-gray-400">加载中...</div>
+            <template v-else>
+              <!-- 输入分段 -->
+              <div class="mb-6">
+                <div class="flex items-center justify-between mb-3">
+                  <h3 class="font-medium text-sm">输入 Token 分段</h3>
+                  <button @click="addTierRow('input')" class="text-sm text-blue-600 hover:underline">+ 添加区间</button>
+                </div>
+                <table class="w-full text-sm">
+                  <thead>
+                    <tr class="text-gray-500 text-xs">
+                      <th class="text-left pb-2">最小 Token（含）</th>
+                      <th class="text-left pb-2">最大 Token（含，空=不限）</th>
+                      <th class="text-left pb-2">成本价（元/MTok）</th>
+                      <th class="text-left pb-2">售价（元/MTok）</th>
+                      <th class="pb-2"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="t in tiers.filter(x => x.token_type === 'input')" :key="tiers.indexOf(t)" class="border-t">
+                      <td class="py-2 pr-2"><input type="number" v-model.number="t.min_tokens" class="w-full border rounded px-2 py-1" /></td>
+                      <td class="py-2 pr-2"><input type="number" v-model.number="t.max_tokens" placeholder="不限" class="w-full border rounded px-2 py-1" /></td>
+                      <td class="py-2 pr-2"><input type="number" step="0.0001" v-model.number="t.cost_per_mtok" class="w-full border rounded px-2 py-1" /></td>
+                      <td class="py-2 pr-2"><input type="number" step="0.0001" v-model.number="t.sell_per_mtok" class="w-full border rounded px-2 py-1" /></td>
+                      <td class="py-2"><button @click="removeTierRow(tiers.indexOf(t))" class="text-red-400 hover:text-red-600">删除</button></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- 输出分段 -->
+              <div>
+                <div class="flex items-center justify-between mb-3">
+                  <h3 class="font-medium text-sm">输出 Token 分段</h3>
+                  <button @click="addTierRow('output')" class="text-sm text-blue-600 hover:underline">+ 添加区间</button>
+                </div>
+                <table class="w-full text-sm">
+                  <thead>
+                    <tr class="text-gray-500 text-xs">
+                      <th class="text-left pb-2">最小 Token（含）</th>
+                      <th class="text-left pb-2">最大 Token（含，空=不限）</th>
+                      <th class="text-left pb-2">成本价（元/MTok）</th>
+                      <th class="text-left pb-2">售价（元/MTok）</th>
+                      <th class="pb-2"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="t in tiers.filter(x => x.token_type === 'output')" :key="tiers.indexOf(t)" class="border-t">
+                      <td class="py-2 pr-2"><input type="number" v-model.number="t.min_tokens" class="w-full border rounded px-2 py-1" /></td>
+                      <td class="py-2 pr-2"><input type="number" v-model.number="t.max_tokens" placeholder="不限" class="w-full border rounded px-2 py-1" /></td>
+                      <td class="py-2 pr-2"><input type="number" step="0.0001" v-model.number="t.cost_per_mtok" class="w-full border rounded px-2 py-1" /></td>
+                      <td class="py-2 pr-2"><input type="number" step="0.0001" v-model.number="t.sell_per_mtok" class="w-full border rounded px-2 py-1" /></td>
+                      <td class="py-2"><button @click="removeTierRow(tiers.indexOf(t))" class="text-red-400 hover:text-red-600">删除</button></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </template>
+          </div>
+
+          <div class="px-6 py-4 border-t flex justify-end gap-3">
+            <button @click="tierDrawerVisible = false" class="px-4 py-2 border rounded text-sm">取消</button>
+            <button @click="saveTiers" :disabled="tierSaving" class="px-4 py-2 bg-purple-600 text-white rounded text-sm disabled:opacity-50">
+              {{ tierSaving ? '保存中...' : '保存分段' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -415,6 +564,11 @@ onMounted(fetchRules)
   font-weight: 500;
   background: var(--gray-100);
   color: var(--text-secondary);
+}
+
+.label-badge--purple {
+  background: #EDE9FE;
+  color: #7C3AED;
 }
 
 .text-mono {
