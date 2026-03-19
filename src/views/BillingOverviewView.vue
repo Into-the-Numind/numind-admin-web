@@ -11,7 +11,7 @@ import {
 } from 'lucide-vue-next'
 import { formatNumber } from '@/utils/format'
 import {
-  providerLabels, operationLabels, moduleGroups,
+  providerLabels, moduleGroups,
   formatCost, formatMarginRate
 } from '@/constants/billingMaps'
 
