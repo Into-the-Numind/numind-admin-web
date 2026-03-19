@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import {
-  getUsersApi, updateUserStatusApi, updateUserTierApi, resetPasswordApi,
+  getUsersApi, updateUserTierApi, resetPasswordApi,
   type User, type UserListParams
 } from '@/api/users'
 import DataTable, { type Column } from '@/components/common/DataTable.vue'
@@ -10,10 +10,10 @@ import AppInput from '@/components/common/AppInput.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import ConfirmModal from '@/components/common/ConfirmModal.vue'
-import { Search, Shield, ShieldOff, KeyRound, Crown } from 'lucide-vue-next'
+import { Search, KeyRound, Crown } from 'lucide-vue-next'
 import { useToast } from '@/composables/useToast'
 import { formatDate } from '@/utils/format'
-import { tierLabels, userStatusLabels } from '@/constants/statusMaps'
+import { tierLabels } from '@/constants/statusMaps'
 
 const toast = useToast()
 const users = ref<User[]>([])
@@ -22,7 +22,6 @@ const page = ref(1)
 const pageSize = 20
 const search = ref('')
 const tierFilter = ref('')
-const statusFilter = ref('')
 const loading = ref(false)
 const error = ref('')
 const processing = ref(false)
@@ -46,12 +45,11 @@ const columns: Column[] = [
   { key: 'id', title: 'ID', width: '60px' },
   { key: 'username', title: '用户名', width: '120px' },
   { key: 'nickname', title: '昵称', width: '120px' },
-  { key: 'phone', title: '手机号', width: '130px' },
   { key: 'user_tier', title: '等级', width: '90px' },
-  { key: 'status', title: '状态', width: '80px' },
+  { key: 'tier_expires', title: '会员到期', width: '140px' },
   { key: 'total_sop_runs', title: 'SOP次数', width: '90px', align: 'right' },
   { key: 'created_at', title: '注册时间', width: '140px' },
-  { key: 'actions', title: '操作', width: '200px' }
+  { key: 'actions', title: '操作', width: '180px' }
 ]
 
 const tierOptions = [
@@ -61,24 +59,18 @@ const tierOptions = [
   { label: '高级版', value: 'premium' }
 ]
 
-const statusOptions = [
-  { label: '全部状态', value: '' },
-  { label: '启用', value: '0' },
-  { label: '禁用', value: '1' }
-]
-
 const changeTierOptions = [
   { label: '免费版', value: 'free' },
   { label: '标准版', value: 'standard' },
   { label: '高级版', value: 'premium' }
 ]
 
-const monthOptions = [
-  { label: '1个月', value: 1 },
-  { label: '3个月', value: 3 },
-  { label: '6个月', value: 6 },
-  { label: '12个月', value: 12 }
-]
+const monthOptions = Array.from({ length: 12 }, (_, i) => ({
+  label: `${i + 1}个月`,
+  value: i + 1
+}))
+
+const isPaidTier = computed(() => selectedTier.value !== 'free')
 
 async function fetchUsers() {
   loading.value = true
@@ -87,7 +79,6 @@ async function fetchUsers() {
     const params: UserListParams = { offset: (page.value - 1) * pageSize, limit: pageSize }
     if (search.value) params.search = search.value
     if (tierFilter.value) params.tier = tierFilter.value
-    if (statusFilter.value !== '') params.status = statusFilter.value
     const res = await getUsersApi(params)
     users.value = res.users
     total.value = res.total
@@ -123,17 +114,6 @@ async function executeConfirm() {
   }
 }
 
-function toggleStatus(user: User) {
-  const newStatus = user.status === 0 ? 1 : 0
-  const label = newStatus === 1 ? '禁用' : '启用'
-  openConfirm(
-    `${label}用户`,
-    `确定要${label}用户 "${user.nickname}" 吗？`,
-    newStatus === 1,
-    () => updateUserStatusApi(user.id, newStatus)
-  )
-}
-
 function openTierModal(user: User) {
   selectedUserId.value = user.id
   selectedTier.value = user.user_tier
@@ -145,7 +125,8 @@ async function submitTierChange() {
   if (processing.value) return
   processing.value = true
   try {
-    await updateUserTierApi(selectedUserId.value, selectedTier.value, tierMonths.value)
+    const months = selectedTier.value === 'free' ? 0 : tierMonths.value
+    await updateUserTierApi(selectedUserId.value, selectedTier.value, months)
     tierModalVisible.value = false
     toast.success('用户等级已变更')
     await fetchUsers()
@@ -178,7 +159,7 @@ watch(search, () => {
   }, 400)
 })
 
-watch([tierFilter, statusFilter], () => {
+watch(tierFilter, () => {
   page.value = 1
   fetchUsers()
 })
@@ -206,7 +187,6 @@ onMounted(fetchUsers)
         </AppInput>
       </div>
       <AppSelect v-model="tierFilter" :options="tierOptions" placeholder="等级筛选" />
-      <AppSelect v-model="statusFilter" :options="statusOptions" placeholder="状态筛选" />
     </div>
 
     <!-- Table -->
@@ -223,8 +203,10 @@ onMounted(fetchUsers)
         <StatusBadge :status="String((row as User).user_tier)" :map="tierLabels" />
       </template>
 
-      <template #cell-status="{ row }">
-        <StatusBadge :status="String((row as User).status)" :map="userStatusLabels" />
+      <template #cell-tier_expires="{ row }">
+        <span class="text-muted">
+          {{ (row as User).user_tier === 'free' ? '永久' : ((row as User).tier_expires ? formatDate(String((row as User).tier_expires)) : '-') }}
+        </span>
       </template>
 
       <template #cell-created_at="{ row }">
@@ -236,16 +218,6 @@ onMounted(fetchUsers)
           <AppButton size="sm" variant="ghost" :disabled="processing" @click.stop="openTierModal(row as User)">
             <Crown :size="14" />
             等级
-          </AppButton>
-          <AppButton
-            size="sm"
-            variant="ghost"
-            :disabled="processing"
-            @click.stop="toggleStatus(row as User)"
-          >
-            <ShieldOff v-if="(row as User).status === 0" :size="14" />
-            <Shield v-else :size="14" />
-            {{ (row as User).status === 0 ? '禁用' : '启用' }}
           </AppButton>
           <AppButton size="sm" variant="ghost" :disabled="processing" @click.stop="handleResetPassword(row as User)">
             <KeyRound :size="14" />
@@ -280,10 +252,11 @@ onMounted(fetchUsers)
               <label class="form-label">等级</label>
               <AppSelect v-model="selectedTier" :options="changeTierOptions" />
             </div>
-            <div class="form-group">
+            <div v-if="isPaidTier" class="form-group">
               <label class="form-label">时长</label>
               <AppSelect v-model="tierMonths" :options="monthOptions" />
             </div>
+            <p v-else class="tier-hint">免费版为永久有效，无需选择时长</p>
             <div class="modal-actions">
               <AppButton variant="secondary" @click="tierModalVisible = false">取消</AppButton>
               <AppButton variant="primary" :loading="processing" @click="submitTierChange">确认变更</AppButton>
@@ -338,6 +311,12 @@ onMounted(fetchUsers)
 .text-muted {
   color: var(--text-secondary);
   font-size: var(--text-xs);
+}
+
+.tier-hint {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  margin: var(--space-2) 0;
 }
 
 .password-display {
