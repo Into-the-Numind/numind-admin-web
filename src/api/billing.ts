@@ -180,3 +180,100 @@ export function updatePricingRuleApi(id: number, data: UpdatePricingRuleRequest)
 export function deletePricingRuleApi(id: number) {
   return del<void>(`/v1/admin/billing/pricing-rules/${id}`)
 }
+
+// ====== Pricing Rule Tiers ======
+
+export interface PricingRuleTier {
+  id: number
+  rule_id: number
+  token_type: 'input' | 'output'
+  min_tokens: number
+  max_tokens: number | null
+  cost_per_mtok: number
+  sell_per_mtok: number
+}
+
+export interface TierInput {
+  token_type: 'input' | 'output'
+  min_tokens: number
+  max_tokens: number | null
+  cost_per_mtok: number
+  sell_per_mtok: number
+}
+
+export function getTiersApi(ruleId: number): Promise<PricingRuleTier[]> {
+  return get<PricingRuleTier[]>(`/billing/pricing-rules/${ruleId}/tiers`)
+}
+
+export function replaceTiersApi(ruleId: number, tiers: TierInput[]): Promise<void> {
+  return put<void>(`/billing/pricing-rules/${ruleId}/tiers`, { tiers })
+}
+
+// ====== Analytics ======
+
+export interface AnalyticsBucket {
+  bucket: string
+  count: number
+}
+
+export interface AnalyticsUserDetail {
+  user_id: number
+  period_tokens: number
+  period_cost_cents: number
+}
+
+export interface AnalyticsTopUser {
+  user_id: number
+  nickname: string
+  period_runs: number
+  period_tokens: number
+  period_cost_cents: number
+}
+
+export interface AnalyticsModelStat {
+  model: string
+  token_share_pct: number
+  period_cost_cents: number
+}
+
+export interface AnalyticsSummary {
+  active_users: number
+  total_runs: number
+  days_in_range: number
+  avg_tokens_per_run: number
+  p50_tokens_per_run: number
+  p90_tokens_per_run: number
+  p95_tokens_per_run: number
+  p50_cost_cents_per_user: number
+  p90_cost_cents_per_user: number
+  p95_cost_cents_per_user: number
+}
+
+export interface AnalyticsResponse {
+  summary: AnalyticsSummary
+  run_distribution: AnalyticsBucket[]
+  user_distribution: AnalyticsBucket[]
+  user_details: AnalyticsUserDetail[]
+  model_breakdown: AnalyticsModelStat[]
+  top_users: AnalyticsTopUser[]
+}
+
+export function getAnalyticsApi(from: string, to: string): Promise<AnalyticsResponse> {
+  return get<AnalyticsResponse>('/billing/analytics', { params: { from, to } })
+}
+
+export function recalculateApi(from: string, to: string, dryRun: boolean): Promise<{
+  affected_records: number
+  old_total_cost_cents: number
+  new_total_cost_cents: number
+  delta_cents: number
+  dry_run: boolean
+}> {
+  return post<{
+    affected_records: number
+    old_total_cost_cents: number
+    new_total_cost_cents: number
+    delta_cents: number
+    dry_run: boolean
+  }>('/billing/recalculate', { from, to, dry_run: dryRun })
+}
