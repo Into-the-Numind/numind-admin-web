@@ -202,11 +202,11 @@ export interface TierInput {
 }
 
 export function getTiersApi(ruleId: number): Promise<PricingRuleTier[]> {
-  return get<PricingRuleTier[]>(`/billing/pricing-rules/${ruleId}/tiers`)
+  return get<PricingRuleTier[]>(`/v1/admin/billing/pricing-rules/${ruleId}/tiers`)
 }
 
 export function replaceTiersApi(ruleId: number, tiers: TierInput[]): Promise<void> {
-  return put<void>(`/billing/pricing-rules/${ruleId}/tiers`, { tiers })
+  return put<void>(`/v1/admin/billing/pricing-rules/${ruleId}/tiers`, { tiers })
 }
 
 // ====== Analytics ======
@@ -259,7 +259,7 @@ export interface AnalyticsResponse {
 }
 
 export function getAnalyticsApi(from: string, to: string): Promise<AnalyticsResponse> {
-  return get<AnalyticsResponse>('/billing/analytics', { params: { from, to } })
+  return get<AnalyticsResponse>('/v1/admin/billing/analytics', { params: { from, to } })
 }
 
 export function recalculateApi(from: string, to: string, dryRun: boolean): Promise<{
@@ -275,5 +275,5 @@ export function recalculateApi(from: string, to: string, dryRun: boolean): Promi
     new_total_cost_cents: number
     delta_cents: number
     dry_run: boolean
-  }>('/billing/recalculate', { from, to, dry_run: dryRun })
+  }>('/v1/admin/billing/recalculate', { from, to, dry_run: dryRun })
 }
