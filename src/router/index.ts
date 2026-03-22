@@ -69,6 +69,12 @@ const router = createRouter({
           meta: { title: '消费分析' }
         },
         {
+          path: 'billing/tier-changes',
+          name: 'billing-tier-changes',
+          component: () => import('@/views/TierChangeLogsView.vue'),
+          meta: { title: '客户升级记录' }
+        },
+        {
           path: 'billing/pricing',
           name: 'billing-pricing',
           component: () => import('@/views/PricingRulesView.vue'),
