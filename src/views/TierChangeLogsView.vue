@@ -93,49 +93,48 @@ onMounted(fetchData)
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50">
+  <div class="page-container">
     <!-- Top bar -->
-    <div class="bg-white border-b px-8 py-4 flex items-center justify-between">
+    <div class="page-header">
       <div>
-        <h1 class="text-base font-semibold">客户升级记录</h1>
-        <p class="text-sm text-gray-500">查看直客 (B2) 对终端用户 (B3) 的等级变更记录，用于月度营收核算</p>
+        <h1 class="page-title">客户升级记录</h1>
+        <p class="page-subtitle">查看直客 (B2) 对终端用户 (B3) 的等级变更记录，用于月度营收核算</p>
       </div>
-      <div class="flex items-center gap-3">
-        <input type="date" v-model="from" class="border rounded px-3 py-1.5 text-sm" />
-        <span class="text-gray-400">&mdash;</span>
-        <input type="date" v-model="to" class="border rounded px-3 py-1.5 text-sm" />
-        <button @click="handleQuery" :disabled="loading"
-          class="bg-purple-600 text-white px-4 py-1.5 rounded text-sm hover:bg-purple-700 disabled:opacity-50">
+      <div class="header-actions">
+        <input type="date" v-model="from" class="date-input" />
+        <span class="date-separator">&mdash;</span>
+        <input type="date" v-model="to" class="date-input" />
+        <button @click="handleQuery" :disabled="loading" class="btn-primary">
           {{ loading ? '加载中...' : '查询' }}
         </button>
       </div>
     </div>
 
-    <div v-if="error" class="mx-8 mt-6 bg-red-50 text-red-600 px-4 py-3 rounded-lg text-sm">{{ error }}</div>
+    <div v-if="error" class="error-alert">{{ error }}</div>
 
-    <div class="p-8 space-y-6">
+    <div class="content-area">
       <!-- Stats cards -->
-      <div v-if="stats" class="grid grid-cols-4 gap-4">
-        <div class="bg-white rounded-xl border p-5">
-          <div class="text-xs text-gray-400 mb-2">总变更次数</div>
-          <div class="text-2xl font-bold">{{ stats.total_changes }}</div>
+      <div v-if="stats" class="stats-grid">
+        <div class="card card-body">
+          <div class="stat-label">总变更次数</div>
+          <div class="stat-value">{{ stats.total_changes }}</div>
         </div>
-        <div class="bg-white rounded-xl border p-5">
-          <div class="text-xs text-gray-400 mb-2">升级次数</div>
-          <div class="text-2xl font-bold text-green-600">{{ stats.upgrades }}</div>
+        <div class="card card-body">
+          <div class="stat-label">升级次数</div>
+          <div class="stat-value stat-value--success">{{ stats.upgrades }}</div>
         </div>
-        <div class="bg-white rounded-xl border p-5">
-          <div class="text-xs text-gray-400 mb-2">降级次数</div>
-          <div class="text-2xl font-bold text-orange-500">{{ stats.downgrades }}</div>
+        <div class="card card-body">
+          <div class="stat-label">降级次数</div>
+          <div class="stat-value stat-value--warning">{{ stats.downgrades }}</div>
         </div>
-        <div class="bg-white rounded-xl border p-5">
-          <div class="text-xs text-gray-400 mb-2">各等级分布</div>
-          <div class="space-y-1">
-            <div v-for="b in stats.tier_breakdown" :key="b.new_tier" class="flex items-center justify-between text-sm">
-              <span class="text-gray-600">{{ tierBreakdownLabel(b.new_tier) }}</span>
-              <span class="font-medium">{{ b.count }}次 / {{ b.total_months }}月</span>
+        <div class="card card-body">
+          <div class="stat-label">各等级分布</div>
+          <div class="tier-breakdown">
+            <div v-for="b in stats.tier_breakdown" :key="b.new_tier" class="tier-row">
+              <span class="tier-name">{{ tierBreakdownLabel(b.new_tier) }}</span>
+              <span class="tier-count">{{ b.count }}次 / {{ b.total_months }}月</span>
             </div>
-            <div v-if="stats.tier_breakdown.length === 0" class="text-sm text-gray-400">暂无数据</div>
+            <div v-if="stats.tier_breakdown.length === 0" class="tier-empty">暂无数据</div>
           </div>
         </div>
       </div>
@@ -151,7 +150,7 @@ onMounted(fetchData)
         @update:page="page = $event"
       >
         <template #cell-created_at="{ row }">
-          <span class="text-sm text-gray-500">{{ formatDateTime((row as TierChangeLogItem).created_at) }}</span>
+          <span class="cell-text">{{ formatDateTime((row as TierChangeLogItem).created_at) }}</span>
         </template>
 
         <template #cell-old_tier="{ row }">
@@ -159,22 +158,159 @@ onMounted(fetchData)
         </template>
 
         <template #cell-new_tier="{ row }">
-          <div class="inline-flex items-center gap-1.5">
+          <div class="tier-cell">
             <StatusBadge :status="(row as TierChangeLogItem).new_tier" :map="tierLabels" />
             <span v-if="isUpgrade((row as TierChangeLogItem).old_tier, (row as TierChangeLogItem).new_tier)"
-              class="text-xs text-green-500 font-medium">&uarr;</span>
-            <span v-else class="text-xs text-orange-500 font-medium">&darr;</span>
+              class="arrow-up">&uarr;</span>
+            <span v-else class="arrow-down">&darr;</span>
           </div>
         </template>
 
         <template #cell-months="{ row }">
-          <span class="text-sm">{{ (row as TierChangeLogItem).months }}个月</span>
+          <span class="cell-text">{{ (row as TierChangeLogItem).months }}个月</span>
         </template>
 
         <template #cell-new_tier_expires="{ row }">
-          <span class="text-sm text-gray-500">{{ formatDateTime((row as TierChangeLogItem).new_tier_expires) }}</span>
+          <span class="cell-text">{{ formatDateTime((row as TierChangeLogItem).new_tier_expires) }}</span>
         </template>
       </DataTable>
     </div>
   </div>
 </template>
+
+<style scoped>
+.page-subtitle {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin-top: var(--space-1);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.date-input {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--text);
+  background: var(--surface);
+  transition: border-color var(--transition-fast);
+}
+
+.date-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+.date-separator {
+  color: var(--gray-400);
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: #fff;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  transition: background var(--transition-fast);
+}
+
+.btn-primary:hover {
+  background: var(--primary-hover);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.content-area {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+/* Stats grid - 4 columns */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-4);
+}
+
+.stat-label {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+.stat-value {
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  color: var(--text);
+}
+
+.stat-value--success {
+  color: var(--success);
+}
+
+.stat-value--warning {
+  color: var(--warning);
+}
+
+/* Tier breakdown in stats card */
+.tier-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.tier-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--text-sm);
+}
+
+.tier-name {
+  color: var(--gray-600);
+}
+
+.tier-count {
+  font-weight: 500;
+}
+
+.tier-empty {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+/* Cell styles */
+.cell-text {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.tier-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.arrow-up {
+  font-size: var(--text-xs);
+  color: var(--success);
+  font-weight: 500;
+}
+
+.arrow-down {
+  font-size: var(--text-xs);
+  color: var(--warning);
+  font-weight: 500;
+}
+</style>

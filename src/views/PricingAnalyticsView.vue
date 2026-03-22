@@ -102,154 +102,149 @@ function formatBucketLabel(label: string): string {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50">
+  <div class="page-container">
     <!-- 顶部栏 -->
-    <div class="bg-white border-b px-8 py-4 flex items-center justify-between">
+    <div class="page-header">
       <div>
-        <h1 class="text-base font-semibold">消费分析</h1>
-        <p class="text-sm text-gray-500">分析用户 Token 消耗分布，用于制定订阅定价方案</p>
+        <h1 class="page-title">消费分析</h1>
+        <p class="page-subtitle">分析用户 Token 消耗分布，用于制定订阅定价方案</p>
       </div>
-      <div class="flex items-center gap-3">
-        <input type="date" v-model="from" class="border rounded px-3 py-1.5 text-sm" />
-        <span class="text-gray-400">—</span>
-        <input type="date" v-model="to" class="border rounded px-3 py-1.5 text-sm" />
-        <button @click="fetchData" :disabled="loading"
-          class="bg-purple-600 text-white px-4 py-1.5 rounded text-sm hover:bg-purple-700 disabled:opacity-50">
+      <div class="header-actions">
+        <input type="date" v-model="from" class="date-input" />
+        <span class="date-separator">&mdash;</span>
+        <input type="date" v-model="to" class="date-input" />
+        <button @click="fetchData" :disabled="loading" class="btn-primary">
           {{ loading ? '加载中...' : '查询' }}
         </button>
       </div>
     </div>
 
-    <div v-if="loading" class="flex items-center justify-center py-32 text-gray-400">加载中...</div>
-    <div v-else-if="error" class="flex items-center justify-center py-32 text-red-400">{{ error }}</div>
+    <div v-if="loading" class="loading-state">加载中...</div>
+    <div v-else-if="error" class="error-alert">{{ error }}</div>
 
-    <div v-else-if="data" class="p-8 space-y-6">
+    <div v-else-if="data" class="content-area">
       <!-- 汇总卡片 -->
-      <div class="grid grid-cols-4 gap-4">
-        <div class="bg-white rounded-xl border p-5">
-          <div class="text-xs text-gray-400 mb-2">有效用户数</div>
-          <div class="text-2xl font-bold">{{ data.summary.active_users }}</div>
-          <div class="text-xs text-gray-400 mt-1">期间有运行记录</div>
+      <div class="stats-grid">
+        <div class="card card-body">
+          <div class="stat-label">有效用户数</div>
+          <div class="stat-value">{{ data.summary.active_users }}</div>
+          <div class="stat-hint">期间有运行记录</div>
         </div>
-        <div class="bg-white rounded-xl border p-5">
-          <div class="text-xs text-gray-400 mb-2">总运行次数</div>
-          <div class="text-2xl font-bold">{{ data.summary.total_runs.toLocaleString() }}</div>
-          <div class="text-xs text-gray-400 mt-1">人均 {{ data.summary.active_users > 0 ? (data.summary.total_runs / data.summary.active_users).toFixed(1) : 0 }} 次</div>
+        <div class="card card-body">
+          <div class="stat-label">总运行次数</div>
+          <div class="stat-value">{{ data.summary.total_runs.toLocaleString() }}</div>
+          <div class="stat-hint">人均 {{ data.summary.active_users > 0 ? (data.summary.total_runs / data.summary.active_users).toFixed(1) : 0 }} 次</div>
         </div>
-        <div class="bg-white rounded-xl border p-5">
-          <div class="text-xs text-gray-400 mb-2">平均每次运行 Token</div>
-          <div class="text-2xl font-bold">{{ formatTokens(data.summary.avg_tokens_per_run) }}</div>
-          <div class="text-xs text-purple-500 mt-1 bg-purple-50 inline-block px-2 py-0.5 rounded-full">P90 = {{ formatTokens(data.summary.p90_tokens_per_run) }}</div>
+        <div class="card card-body">
+          <div class="stat-label">平均每次运行 Token</div>
+          <div class="stat-value">{{ formatTokens(data.summary.avg_tokens_per_run) }}</div>
+          <div class="stat-badge stat-badge--purple">P90 = {{ formatTokens(data.summary.p90_tokens_per_run) }}</div>
         </div>
-        <div class="bg-white rounded-xl border p-5">
-          <div class="text-xs text-gray-400 mb-2">平均成本 / 用户（期间）</div>
-          <div class="text-2xl font-bold">¥ {{ (data.summary.p50_cost_cents_per_user / 100).toFixed(2) }}</div>
-          <div class="text-xs text-orange-500 mt-1 bg-orange-50 inline-block px-2 py-0.5 rounded-full">P90 = ¥{{ (data.summary.p90_cost_cents_per_user / 100).toFixed(2) }}</div>
+        <div class="card card-body">
+          <div class="stat-label">平均成本 / 用户（期间）</div>
+          <div class="stat-value">¥ {{ (data.summary.p50_cost_cents_per_user / 100).toFixed(2) }}</div>
+          <div class="stat-badge stat-badge--warning">P90 = ¥{{ (data.summary.p90_cost_cents_per_user / 100).toFixed(2) }}</div>
         </div>
       </div>
 
       <!-- 两个直方图 -->
-      <div class="grid grid-cols-2 gap-6">
+      <div class="chart-grid">
         <!-- 单次运行分布 -->
-        <div class="bg-white rounded-xl border p-6">
-          <h2 class="font-semibold text-sm mb-1">单次运行 Token 分布</h2>
-          <p class="text-xs text-gray-400 mb-4">每次 SOP 运行消耗的 token 总量</p>
+        <div class="card card-body">
+          <h2 class="section-title">单次运行 Token 分布</h2>
+          <p class="section-desc">每次 SOP 运行消耗的 token 总量</p>
           <!-- 百分位 -->
-          <div class="grid grid-cols-3 gap-3 mb-5">
-            <div v-for="p in runPercentiles" :key="p.label"
-              class="text-center bg-purple-50 rounded-lg py-2 px-1">
-              <div class="text-xs text-gray-400">{{ p.label }}</div>
-              <div class="text-lg font-bold text-purple-600">{{ formatTokens(p.val) }}</div>
+          <div class="percentile-grid">
+            <div v-for="p in runPercentiles" :key="p.label" class="percentile-item percentile-item--purple">
+              <div class="percentile-label">{{ p.label }}</div>
+              <div class="percentile-value percentile-value--purple">{{ formatTokens(p.val) }}</div>
             </div>
           </div>
           <!-- 柱状图 -->
-          <div class="flex items-end gap-2 h-28">
-            <div v-for="b in data.run_distribution" :key="b.bucket"
-              class="flex-1 flex flex-col items-center justify-end gap-1">
-              <span class="text-xs text-gray-500 font-medium">{{ b.count }}</span>
-              <div class="w-full rounded-t"
-                :style="{ height: `${Math.max(4, b.count / histMaxCount(data.run_distribution) * 100)}%`, background: '#7c3aed' }" />
-              <span class="text-[10px] text-gray-400 text-center leading-tight">{{ formatBucketLabel(b.bucket) }}</span>
+          <div class="histogram">
+            <div v-for="b in data.run_distribution" :key="b.bucket" class="histogram-bar">
+              <span class="histogram-count">{{ b.count }}</span>
+              <div class="histogram-fill"
+                :style="{ height: `${Math.max(4, b.count / histMaxCount(data.run_distribution) * 100)}%`, background: 'var(--primary)' }" />
+              <span class="histogram-label">{{ formatBucketLabel(b.bucket) }}</span>
             </div>
           </div>
         </div>
 
         <!-- 用户月度分布 -->
-        <div class="bg-white rounded-xl border p-6">
-          <h2 class="font-semibold text-sm mb-1">用户期间 Token 分布</h2>
-          <p class="text-xs text-gray-400 mb-4">每个用户在所选时间范围内的总消耗（定价核心参考）</p>
-          <div class="grid grid-cols-3 gap-3 mb-5">
-            <div v-for="p in userCostPercentiles" :key="p.label"
-              class="text-center bg-green-50 rounded-lg py-2 px-1">
-              <div class="text-xs text-gray-400">{{ p.label }}</div>
-              <div class="text-lg font-bold text-green-600">¥{{ (p.val / 100).toFixed(2) }}</div>
+        <div class="card card-body">
+          <h2 class="section-title">用户期间 Token 分布</h2>
+          <p class="section-desc">每个用户在所选时间范围内的总消耗（定价核心参考）</p>
+          <div class="percentile-grid">
+            <div v-for="p in userCostPercentiles" :key="p.label" class="percentile-item percentile-item--success">
+              <div class="percentile-label">{{ p.label }}</div>
+              <div class="percentile-value percentile-value--success">¥{{ (p.val / 100).toFixed(2) }}</div>
             </div>
           </div>
-          <div class="flex items-end gap-2 h-28">
-            <div v-for="b in data.user_distribution" :key="b.bucket"
-              class="flex-1 flex flex-col items-center justify-end gap-1">
-              <span class="text-xs text-gray-500 font-medium">{{ b.count }}人</span>
-              <div class="w-full rounded-t"
-                :style="{ height: `${Math.max(4, b.count / histMaxCount(data.user_distribution) * 100)}%`, background: '#16a34a' }" />
-              <span class="text-[10px] text-gray-400 text-center leading-tight">{{ formatBucketLabel(b.bucket) }}</span>
+          <div class="histogram">
+            <div v-for="b in data.user_distribution" :key="b.bucket" class="histogram-bar">
+              <span class="histogram-count">{{ b.count }}人</span>
+              <div class="histogram-fill"
+                :style="{ height: `${Math.max(4, b.count / histMaxCount(data.user_distribution) * 100)}%`, background: 'var(--success)' }" />
+              <span class="histogram-label">{{ formatBucketLabel(b.bucket) }}</span>
             </div>
           </div>
         </div>
       </div>
 
       <!-- 模拟器 + 模型分布 -->
-      <div class="grid grid-cols-2 gap-6">
+      <div class="chart-grid">
         <!-- 定价模拟器 -->
-        <div class="bg-white rounded-xl border p-6">
-          <h2 class="font-semibold text-sm mb-1">订阅定价模拟器</h2>
-          <p class="text-xs text-gray-400 mb-5">输入套餐参数，基于当前用户数据实时估算利润率</p>
-          <div class="grid grid-cols-2 gap-6">
-            <div class="space-y-4">
-              <div>
-                <label class="block text-xs font-medium text-gray-600 mb-1">月费（元）</label>
-                <input type="number" v-model.number="simMonthlyFee" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 focus:outline-none" />
+        <div class="card card-body">
+          <h2 class="section-title">订阅定价模拟器</h2>
+          <p class="section-desc">输入套餐参数，基于当前用户数据实时估算利润率</p>
+          <div class="simulator-grid">
+            <div class="simulator-inputs">
+              <div class="form-group">
+                <label class="form-label">月费（元）</label>
+                <input type="number" v-model.number="simMonthlyFee" class="form-input" />
               </div>
-              <div>
-                <label class="block text-xs font-medium text-gray-600 mb-1">包含 Token 上限（万）</label>
-                <input type="number" v-model.number="simTokenCapWan" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 focus:outline-none" />
-                <p class="text-xs text-gray-400 mt-1">即 {{ (simTokenCapWan * 10000).toLocaleString() }} tokens / 月</p>
+              <div class="form-group">
+                <label class="form-label">包含 Token 上限（万）</label>
+                <input type="number" v-model.number="simTokenCapWan" class="form-input" />
+                <p class="form-hint">即 {{ (simTokenCapWan * 10000).toLocaleString() }} tokens / 月</p>
               </div>
-              <div>
-                <label class="block text-xs font-medium text-gray-600 mb-1">超出单价（元 / 万 token）</label>
-                <input type="number" step="0.1" v-model.number="simOveragePrice" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 focus:outline-none" />
+              <div class="form-group">
+                <label class="form-label">超出单价（元 / 万 token）</label>
+                <input type="number" step="0.1" v-model.number="simOveragePrice" class="form-input" />
               </div>
             </div>
-            <div v-if="simResult" class="bg-purple-50 rounded-xl p-4 space-y-2.5">
-              <div class="text-xs font-semibold text-purple-600 uppercase tracking-wide mb-3">模拟结果</div>
-              <div class="flex justify-between text-sm">
-                <span class="text-gray-500">在限额内用户占比</span>
-                <span class="font-bold text-purple-600">{{ simResult.withinCapPct }}%</span>
+            <div v-if="simResult" class="simulator-result">
+              <div class="result-header">模拟结果</div>
+              <div class="result-row">
+                <span class="result-label">在限额内用户占比</span>
+                <span class="result-value result-value--primary">{{ simResult.withinCapPct }}%</span>
               </div>
-              <div class="flex justify-between text-sm">
-                <span class="text-gray-500">预计月总收入</span>
-                <span class="font-bold">¥ {{ Number(simResult.totalRevenue).toLocaleString() }}</span>
+              <div class="result-row">
+                <span class="result-label">预计月总收入</span>
+                <span class="result-value">¥ {{ Number(simResult.totalRevenue).toLocaleString() }}</span>
               </div>
-              <div class="flex justify-between text-sm">
-                <span class="text-gray-500">预计月总成本</span>
-                <span class="font-bold">¥ {{ Number(simResult.totalCost).toLocaleString() }}</span>
+              <div class="result-row">
+                <span class="result-label">预计月总成本</span>
+                <span class="result-value">¥ {{ Number(simResult.totalCost).toLocaleString() }}</span>
               </div>
-              <div class="flex justify-between text-sm border-t pt-2">
-                <span class="text-gray-500">预计毛利润</span>
-                <span class="font-bold" :class="simResult.marginPositive ? 'text-green-600' : 'text-red-500'">
+              <div class="result-row result-row--border">
+                <span class="result-label">预计毛利润</span>
+                <span class="result-value" :class="simResult.marginPositive ? 'result-value--success' : 'result-value--danger'">
                   ¥ {{ Number(simResult.grossProfit).toLocaleString() }}
                 </span>
               </div>
-              <div class="mt-3">
-                <div class="flex justify-between text-xs text-gray-500 mb-1">
-                  <span>毛利率</span>
-                  <span class="font-bold" :class="simResult.marginPositive ? 'text-green-600' : 'text-red-500'">
+              <div class="margin-meter">
+                <div class="margin-meter-header">
+                  <span class="result-label">毛利率</span>
+                  <span class="result-value" :class="simResult.marginPositive ? 'result-value--success' : 'result-value--danger'">
                     {{ simResult.marginPct }}%
                   </span>
                 </div>
-                <div class="bg-gray-200 rounded h-2">
-                  <div class="h-2 rounded transition-all"
+                <div class="progress-bg">
+                  <div class="progress-fill"
                     :style="{ width: `${Math.min(100, Math.max(0, Number(simResult.marginPct)))}%` }"
-                    :class="simResult.marginPositive ? 'bg-gradient-to-r from-purple-500 to-purple-300' : 'bg-red-400'" />
+                    :class="simResult.marginPositive ? 'progress-fill--positive' : 'progress-fill--negative'" />
                 </div>
               </div>
             </div>
@@ -257,37 +252,37 @@ function formatBucketLabel(label: string): string {
         </div>
 
         <!-- 模型分布 + 用户排行 -->
-        <div class="bg-white rounded-xl border p-6">
-          <h2 class="font-semibold text-sm mb-4">模型成本分布</h2>
-          <div class="space-y-3 mb-6">
-            <div v-for="m in data.model_breakdown" :key="m.model" class="flex items-center gap-3">
-              <div class="text-sm font-medium w-36 truncate">{{ m.model || '未知' }}</div>
-              <div class="flex-1 bg-gray-100 rounded h-1.5">
-                <div class="bg-purple-500 h-1.5 rounded" :style="{ width: m.token_share_pct + '%' }" />
+        <div class="card card-body">
+          <h2 class="section-title">模型成本分布</h2>
+          <div class="model-list">
+            <div v-for="m in data.model_breakdown" :key="m.model" class="model-row">
+              <div class="model-name">{{ m.model || '未知' }}</div>
+              <div class="model-bar-bg">
+                <div class="model-bar-fill" :style="{ width: m.token_share_pct + '%' }" />
               </div>
-              <div class="text-xs text-gray-500 w-10 text-right">{{ m.token_share_pct }}%</div>
-              <div class="text-xs text-orange-500 w-16 text-right">¥ {{ (m.period_cost_cents / 100).toFixed(0) }}</div>
+              <div class="model-pct">{{ m.token_share_pct }}%</div>
+              <div class="model-cost">¥ {{ (m.period_cost_cents / 100).toFixed(0) }}</div>
             </div>
           </div>
 
-          <h2 class="font-semibold text-sm mb-3">用户消费排行 Top 20</h2>
-          <div class="overflow-x-auto">
-            <table class="w-full text-xs">
+          <h2 class="section-title section-title--mt">用户消费排行 Top 20</h2>
+          <div class="table-container">
+            <table class="runs-table">
               <thead>
-                <tr class="text-gray-400">
-                  <th class="text-left pb-2">用户</th>
-                  <th class="text-right pb-2">运行次数</th>
-                  <th class="text-right pb-2">Token</th>
-                  <th class="text-right pb-2">成本</th>
+                <tr>
+                  <th class="align-left">用户</th>
+                  <th class="align-right">运行次数</th>
+                  <th class="align-right">Token</th>
+                  <th class="align-right">成本</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="u in data.top_users" :key="u.user_id" class="border-t border-gray-50">
-                  <td class="py-1.5 text-gray-700">{{ u.nickname || `用户${u.user_id}` }}</td>
-                  <td class="py-1.5 text-right text-gray-500">{{ u.period_runs }}</td>
-                  <td class="py-1.5 text-right text-gray-500">{{ formatTokens(u.period_tokens) }}</td>
-                  <td class="py-1.5 text-right"
-                    :class="u.period_cost_cents > data!.summary.p90_cost_cents_per_user ? 'text-orange-500 font-medium' : 'text-gray-500'">
+                <tr v-for="u in data.top_users" :key="u.user_id">
+                  <td>{{ u.nickname || `用户${u.user_id}` }}</td>
+                  <td class="align-right text-secondary">{{ u.period_runs }}</td>
+                  <td class="align-right text-secondary">{{ formatTokens(u.period_tokens) }}</td>
+                  <td class="align-right"
+                    :class="u.period_cost_cents > data!.summary.p90_cost_cents_per_user ? 'text-warning text-medium' : 'text-secondary'">
                     ¥{{ (u.period_cost_cents / 100).toFixed(2) }}
                   </td>
                 </tr>
@@ -299,3 +294,415 @@ function formatBucketLabel(label: string): string {
     </div>
   </div>
 </template>
+
+<style scoped>
+.page-subtitle {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin-top: var(--space-1);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.date-input {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--text);
+  background: var(--surface);
+  transition: border-color var(--transition-fast);
+}
+
+.date-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+.date-separator {
+  color: var(--gray-400);
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: #fff;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  transition: background var(--transition-fast);
+}
+
+.btn-primary:hover {
+  background: var(--primary-hover);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-12) 0;
+  color: var(--text-secondary);
+}
+
+.content-area {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+/* Stats grid - 4 columns */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-4);
+}
+
+.stat-label {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+.stat-value {
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  color: var(--text);
+}
+
+.stat-hint {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  margin-top: var(--space-1);
+}
+
+.stat-badge {
+  display: inline-block;
+  font-size: var(--text-xs);
+  padding: 2px var(--space-2);
+  border-radius: 999px;
+  margin-top: var(--space-1);
+}
+
+.stat-badge--purple {
+  color: var(--primary);
+  background: var(--primary-light);
+}
+
+.stat-badge--warning {
+  color: var(--warning);
+  background: var(--warning-light);
+}
+
+/* Chart grid - 2 columns */
+.chart-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-6);
+}
+
+.section-title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: var(--space-1);
+}
+
+.section-title--mt {
+  margin-top: var(--space-6);
+}
+
+.section-desc {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  margin-bottom: var(--space-4);
+}
+
+/* Percentile cards */
+.percentile-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+
+.percentile-item {
+  text-align: center;
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-1);
+}
+
+.percentile-item--purple {
+  background: var(--primary-light);
+}
+
+.percentile-item--success {
+  background: var(--success-light);
+}
+
+.percentile-label {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.percentile-value {
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+
+.percentile-value--purple {
+  color: var(--primary);
+}
+
+.percentile-value--success {
+  color: var(--success);
+}
+
+/* Histogram */
+.histogram {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+  height: 7rem;
+}
+
+.histogram-bar {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-1);
+}
+
+.histogram-count {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.histogram-fill {
+  width: 100%;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  transition: height var(--transition-base);
+}
+
+.histogram-label {
+  font-size: 10px;
+  color: var(--gray-400);
+  text-align: center;
+  line-height: 1.2;
+}
+
+/* Simulator */
+.simulator-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-6);
+}
+
+.simulator-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.form-input {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--text);
+  background: var(--surface);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+.form-hint {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  margin-top: var(--space-1);
+}
+
+.simulator-result {
+  background: var(--primary-light);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.result-header {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--space-2);
+}
+
+.result-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--text-sm);
+}
+
+.result-row--border {
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-2);
+}
+
+.result-label {
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+}
+
+.result-value {
+  font-weight: 700;
+  font-size: var(--text-sm);
+}
+
+.result-value--primary {
+  color: var(--primary);
+}
+
+.result-value--success {
+  color: var(--success);
+}
+
+.result-value--danger {
+  color: var(--danger);
+}
+
+.margin-meter {
+  margin-top: var(--space-3);
+}
+
+.margin-meter-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: var(--space-1);
+}
+
+.progress-bg {
+  background: var(--gray-200);
+  border-radius: var(--radius-sm);
+  height: 8px;
+}
+
+.progress-fill {
+  height: 8px;
+  border-radius: var(--radius-sm);
+  transition: width var(--transition-base);
+}
+
+.progress-fill--positive {
+  background: linear-gradient(to right, var(--primary), var(--primary-200));
+}
+
+.progress-fill--negative {
+  background: var(--danger);
+}
+
+/* Model breakdown */
+.model-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+}
+
+.model-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.model-name {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  width: 9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.model-bar-bg {
+  flex: 1;
+  background: var(--gray-100);
+  border-radius: var(--radius-sm);
+  height: 6px;
+}
+
+.model-bar-fill {
+  background: var(--primary);
+  height: 6px;
+  border-radius: var(--radius-sm);
+}
+
+.model-pct {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  width: 2.5rem;
+  text-align: right;
+}
+
+.model-cost {
+  font-size: var(--text-xs);
+  color: var(--warning);
+  width: 4rem;
+  text-align: right;
+}
+
+/* Table */
+.table-container {
+  overflow-x: auto;
+}
+
+.runs-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.runs-table th {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  font-weight: 500;
+  border-bottom: 1px solid var(--border);
+}
+
+.runs-table td {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--text);
+  border-bottom: 1px solid var(--gray-50);
+}
+
+.runs-table tr:last-child td {
+  border-bottom: none;
+}
+
+.align-left { text-align: left; }
+.align-right { text-align: right; }
+.text-secondary { color: var(--text-secondary); }
+.text-warning { color: var(--warning); }
+.text-medium { font-weight: 500; }
+</style>
