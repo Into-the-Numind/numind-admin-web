@@ -277,3 +277,41 @@ export function recalculateApi(from: string, to: string, dryRun: boolean): Promi
     dry_run: boolean
   }>('/v1/admin/billing/recalculate', { from, to, dry_run: dryRun })
 }
+
+// ====== Tier Change Logs ======
+
+export interface TierChangeLogItem {
+  id: number
+  parent_user_id: number
+  parent_nickname: string
+  sub_user_id: number
+  sub_nickname: string
+  old_tier: string
+  new_tier: string
+  months: number
+  old_tier_expires: string | null
+  new_tier_expires: string
+  created_at: string
+}
+
+export interface TierChangeLogsResponse {
+  total: number
+  items: TierChangeLogItem[]
+}
+
+export interface TierChangeStatsResponse {
+  total_changes: number
+  upgrades: number
+  downgrades: number
+  tier_breakdown: { new_tier: string; count: number; total_months: number }[]
+}
+
+export function getTierChangeLogsApi(params: {
+  from?: string; to?: string; offset?: number; limit?: number
+}): Promise<TierChangeLogsResponse> {
+  return get<TierChangeLogsResponse>('/v1/admin/billing/tier-changes', { params })
+}
+
+export function getTierChangeStatsApi(from: string, to: string): Promise<TierChangeStatsResponse> {
+  return get<TierChangeStatsResponse>('/v1/admin/billing/tier-changes/stats', { params: { from, to } })
+}
