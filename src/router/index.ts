@@ -79,6 +79,18 @@ const router = createRouter({
           name: 'billing-pricing',
           component: () => import('@/views/PricingRulesView.vue'),
           meta: { title: '定价管理' }
+        },
+        {
+          path: 'credits',
+          name: 'credits',
+          component: () => import('@/views/CreditUsersView.vue'),
+          meta: { title: '积分管理' }
+        },
+        {
+          path: 'orders',
+          name: 'orders',
+          component: () => import('@/views/OrdersView.vue'),
+          meta: { title: '订单管理' }
         }
       ]
     },
