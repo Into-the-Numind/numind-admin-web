@@ -51,7 +51,7 @@ const packageStatusMap: Record<string, { label: string; color: string }> = {
 const columns: Column[] = [
   { key: 'user_id', title: '用户ID', width: '80px' },
   { key: 'username', title: '用户名', width: '140px' },
-  { key: 'balance', title: '积分余额', width: '100px', align: 'right' },
+  { key: 'balance', title: '额度余额', width: '100px', align: 'right' },
   { key: 'status', title: '账户状态', width: '90px' },
   { key: 'created_at', title: '创建时间', width: '140px' },
   { key: 'actions', title: '操作', width: '160px' }
@@ -59,7 +59,7 @@ const columns: Column[] = [
 
 const typeOptions = [
   { label: 'subscription（订阅）', value: 'subscription' },
-  { label: 'booster（加油包）', value: 'booster' },
+  { label: 'booster（加量包）', value: 'booster' },
   { label: 'trial（试用）', value: 'trial' }
 ]
 
@@ -132,7 +132,7 @@ onMounted(fetchList)
 <template>
   <div class="page-container">
     <div class="page-header">
-      <h1 class="page-title">积分管理</h1>
+      <h1 class="page-title">额度管理</h1>
     </div>
 
     <div v-if="error" class="error-alert">{{ error }}</div>
@@ -195,7 +195,7 @@ onMounted(fetchList)
         >
           <div class="modal-card modal-card--wide" role="dialog" aria-modal="true">
             <div class="modal-header">
-              <h3 class="modal-title">积分详情（用户 #{{ selectedUserId }}）</h3>
+              <h3 class="modal-title">额度详情（用户 #{{ selectedUserId }}）</h3>
               <AppButton size="sm" variant="ghost" @click="detailVisible = false">关闭</AppButton>
             </div>
 
@@ -209,12 +209,12 @@ onMounted(fetchList)
               </div>
 
               <!-- Packages -->
-              <h4 class="section-title">积分包</h4>
+              <h4 class="section-title">额度包</h4>
               <table class="inner-table" v-if="detail.packages?.length">
                 <thead>
                   <tr>
                     <th>类型</th>
-                    <th>总积分</th>
+                    <th>总额度</th>
                     <th>剩余</th>
                     <th>生效时间</th>
                     <th>到期时间</th>
@@ -232,10 +232,10 @@ onMounted(fetchList)
                   </tr>
                 </tbody>
               </table>
-              <p v-else class="empty-hint">暂无积分包</p>
+              <p v-else class="empty-hint">暂无额度包</p>
 
               <!-- Transactions -->
-              <h4 class="section-title">积分流水</h4>
+              <h4 class="section-title">额度流水</h4>
               <table class="inner-table" v-if="detail.transactions?.length">
                 <thead>
                   <tr>
@@ -261,7 +261,7 @@ onMounted(fetchList)
               <div class="modal-actions">
                 <AppButton variant="primary" @click="openRecharge(selectedUserId); detailVisible = false">
                   <Coins :size="14" />
-                  充值积分
+                  充值额度
                 </AppButton>
               </div>
             </template>
@@ -280,16 +280,16 @@ onMounted(fetchList)
           @keydown.esc="rechargeVisible = false"
         >
           <div class="modal-card" role="dialog" aria-modal="true">
-            <h3 class="modal-title">充值积分（用户 #{{ rechargeUserId }}）</h3>
+            <h3 class="modal-title">充值额度（用户 #{{ rechargeUserId }}）</h3>
 
             <div class="form-group">
-              <label class="form-label">积分包类型</label>
+              <label class="form-label">额度包类型</label>
               <AppSelect v-model="rechargeType" :options="typeOptions" />
             </div>
 
             <div class="form-group">
-              <label class="form-label">积分数量</label>
-              <AppInput v-model="rechargeCreditsAmount" type="number" placeholder="请输入积分数量" />
+              <label class="form-label">额度数量</label>
+              <AppInput v-model="rechargeCreditsAmount" type="number" placeholder="请输入额度数量" />
             </div>
 
             <div class="form-group">

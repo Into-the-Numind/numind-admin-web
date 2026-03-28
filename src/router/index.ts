@@ -84,7 +84,7 @@ const router = createRouter({
           path: 'credits',
           name: 'credits',
           component: () => import('@/views/CreditUsersView.vue'),
-          meta: { title: '积分管理' }
+          meta: { title: '额度管理' }
         },
         {
           path: 'orders',

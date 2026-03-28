@@ -49,7 +49,7 @@ const navItems = [
   { name: 'billing-analytics', label: '消费分析', icon: TrendingUp, path: '/billing/analytics' },
   { name: 'billing-tier-changes', label: '升级记录', icon: ArrowUpDown, path: '/billing/tier-changes' },
   { name: 'billing-pricing', label: '定价管理', icon: Settings, path: '/billing/pricing' },
-  { name: 'credits', label: '积分管理', icon: Coins, path: '/credits' },
+  { name: 'credits', label: '额度管理', icon: Coins, path: '/credits' },
   { name: 'orders', label: '订单管理', icon: ShoppingCart, path: '/orders' }
 ]
 
