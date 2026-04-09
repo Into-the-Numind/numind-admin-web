@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
+import { onMounted } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import { useAuthStore } from "@/stores/auth";
 import {
   LayoutDashboard,
   Users,
@@ -16,60 +16,102 @@ import {
   PanelLeft,
   LogOut,
   Coins,
-  ShoppingCart
-} from 'lucide-vue-next'
+  ShoppingCart,
+  Cpu,
+  Bot,
+} from "lucide-vue-next";
 
-const props = defineProps<{ collapsed: boolean }>()
-const emit = defineEmits<{ 'update:collapsed': [value: boolean] }>()
+const props = defineProps<{ collapsed: boolean }>();
+const emit = defineEmits<{ "update:collapsed": [value: boolean] }>();
 
-const route = useRoute()
-const router = useRouter()
-const authStore = useAuthStore()
+const route = useRoute();
+const router = useRouter();
+const authStore = useAuthStore();
 
 function toggleCollapsed() {
-  const newVal = !props.collapsed
-  emit('update:collapsed', newVal)
-  localStorage.setItem('sidebar_collapsed', String(newVal))
+  const newVal = !props.collapsed;
+  emit("update:collapsed", newVal);
+  localStorage.setItem("sidebar_collapsed", String(newVal));
 }
 
 onMounted(() => {
   if (window.innerWidth < 768 && !props.collapsed) {
-    emit('update:collapsed', true)
-    localStorage.setItem('sidebar_collapsed', 'true')
+    emit("update:collapsed", true);
+    localStorage.setItem("sidebar_collapsed", "true");
   }
-})
+});
 
 const navItems = [
-  { name: 'dashboard', label: '仪表盘', icon: LayoutDashboard, path: '/' },
-  { name: 'users', label: '用户管理', icon: Users, path: '/users' },
-  { name: 'templates', label: 'SOP模板', icon: FileText, path: '/templates' },
-  { name: 'runs', label: '运行监控', icon: PlayCircle, path: '/runs' },
-  { name: 'billing-overview', label: '用量概览', icon: BarChart3, path: '/billing' },
-  { name: 'billing-records', label: '用量明细', icon: Receipt, path: '/billing/records' },
-  { name: 'billing-analytics', label: '消费分析', icon: TrendingUp, path: '/billing/analytics' },
-  { name: 'billing-tier-changes', label: '升级记录', icon: ArrowUpDown, path: '/billing/tier-changes' },
-  { name: 'billing-pricing', label: '定价管理', icon: Settings, path: '/billing/pricing' },
-  { name: 'credits', label: '额度管理', icon: Coins, path: '/credits' },
-  { name: 'orders', label: '订单管理', icon: ShoppingCart, path: '/orders' }
-]
+  { name: "dashboard", label: "仪表盘", icon: LayoutDashboard, path: "/" },
+  { name: "users", label: "用户管理", icon: Users, path: "/users" },
+  { name: "templates", label: "SOP模板", icon: FileText, path: "/templates" },
+  { name: "runs", label: "运行监控", icon: PlayCircle, path: "/runs" },
+  {
+    name: "billing-overview",
+    label: "用量概览",
+    icon: BarChart3,
+    path: "/billing",
+  },
+  {
+    name: "billing-records",
+    label: "用量明细",
+    icon: Receipt,
+    path: "/billing/records",
+  },
+  {
+    name: "billing-analytics",
+    label: "消费分析",
+    icon: TrendingUp,
+    path: "/billing/analytics",
+  },
+  {
+    name: "billing-tier-changes",
+    label: "升级记录",
+    icon: ArrowUpDown,
+    path: "/billing/tier-changes",
+  },
+  {
+    name: "billing-pricing",
+    label: "定价管理",
+    icon: Settings,
+    path: "/billing/pricing",
+  },
+  { name: "credits", label: "额度管理", icon: Coins, path: "/credits" },
+  { name: "orders", label: "订单管理", icon: ShoppingCart, path: "/orders" },
+  {
+    name: "LLMProviders",
+    label: "LLM 供应商",
+    icon: Cpu,
+    path: "/llm-providers",
+  },
+  {
+    name: "LLMModels",
+    label: "LLM 模型",
+    icon: Bot,
+    path: "/llm-models",
+  },
+];
 
-function isActive(item: typeof navItems[0]) {
-  if (item.path === '/') return route.path === '/'
+function isActive(item: (typeof navItems)[0]) {
+  if (item.path === "/") return route.path === "/";
   // 如果存在更具体的子路由匹配，当前项不应高亮
   const hasMoreSpecific = navItems.some(
-    other => other.path !== item.path && other.path.startsWith(item.path) && route.path.startsWith(other.path)
-  )
-  if (hasMoreSpecific) return false
-  return route.path.startsWith(item.path)
+    (other) =>
+      other.path !== item.path &&
+      other.path.startsWith(item.path) &&
+      route.path.startsWith(other.path),
+  );
+  if (hasMoreSpecific) return false;
+  return route.path.startsWith(item.path);
 }
 
 function navigate(path: string) {
-  router.push(path)
+  router.push(path);
 }
 
 function handleLogout() {
-  authStore.logout()
-  router.push('/login')
+  authStore.logout();
+  router.push("/login");
 }
 </script>
 
@@ -82,7 +124,11 @@ function handleLogout() {
           <span v-if="!collapsed" class="logo-text">莫小派管理</span>
         </Transition>
       </div>
-      <button class="sidebar__toggle" aria-label="切换侧边栏" @click="toggleCollapsed()">
+      <button
+        class="sidebar__toggle"
+        aria-label="切换侧边栏"
+        @click="toggleCollapsed()"
+      >
         <PanelLeftClose v-if="!collapsed" :size="18" />
         <PanelLeft v-else :size="18" />
       </button>
@@ -99,15 +145,21 @@ function handleLogout() {
       >
         <component :is="item.icon" :size="20" class="nav-item__icon" />
         <Transition name="fade">
-          <span v-if="!collapsed" class="nav-item__label">{{ item.label }}</span>
+          <span v-if="!collapsed" class="nav-item__label">{{
+            item.label
+          }}</span>
         </Transition>
       </button>
     </nav>
 
     <div class="sidebar__footer">
       <div v-if="!collapsed" class="sidebar__user">
-        <div class="user-avatar">{{ authStore.user?.nickname?.charAt(0) || 'A' }}</div>
-        <span class="user-name">{{ authStore.user?.nickname || '管理员' }}</span>
+        <div class="user-avatar">
+          {{ authStore.user?.nickname?.charAt(0) || "A" }}
+        </div>
+        <span class="user-name">{{
+          authStore.user?.nickname || "管理员"
+        }}</span>
       </div>
       <button
         class="nav-item nav-item--logout"
@@ -276,7 +328,7 @@ function handleLogout() {
 
 .nav-item--logout:hover {
   background: rgba(239, 68, 68, 0.2);
-  color: #FCA5A5;
+  color: #fca5a5;
 }
 
 .fade-enter-active,
