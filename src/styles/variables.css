@@ -1,3 +1,14 @@
+/* =====================================================
+ * 莫小派设计系统变量 — 管理端 (numind-admin-web)
+ *
+ * ⚠️ CURRENT STATE: Tailwind defaults. NOT yet rebranded.
+ * Master brand lives in numind-web-v3/src/shared/styles/variables.css
+ * Reference: /DESIGN.md §2-§5
+ *
+ * Rebrand planned as follow-up feature: admin-rebrand-to-design-md
+ * Until rebrand completes, expect visual divergence from user-side.
+ * ===================================================== */
+
 :root {
   /* Primary */
   --primary: #4F46E5;

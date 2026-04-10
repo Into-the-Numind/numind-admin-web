@@ -12,6 +12,7 @@
 - **HTTP**: Axios
 - **图标**: Lucide Vue Next
 - **主题**: CSS Variables（不使用外部 UI 框架）
+- **设计语言**: 见根目录 `DESIGN.md`（v3 是 master，admin 当前是 Tailwind 默认值，rebrand 计划见 follow-up `admin-rebrand-to-design-md`）+ `.impeccable.md`
 
 ---
 
