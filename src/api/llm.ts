@@ -20,6 +20,7 @@ export interface LLMModel {
   is_thinking: boolean;
   base_model_id: number | null;
   supports_thinking: boolean;
+  thinking_only: boolean;
   icon: string;
   sort_order: number;
   is_active: boolean;

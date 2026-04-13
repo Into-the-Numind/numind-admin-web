@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import {
   getModelsApi,
   createModelApi,
@@ -49,6 +49,7 @@ interface ModelForm {
   is_thinking: boolean;
   base_model_id: number | null;
   supports_thinking: boolean;
+  thinking_only: boolean;
   icon: string;
   sort_order: number;
   is_active: boolean;
@@ -60,6 +61,7 @@ const defaultModelForm: ModelForm = {
   is_thinking: false,
   base_model_id: null,
   supports_thinking: false,
+  thinking_only: false,
   icon: "",
   sort_order: 0,
   is_active: true,
@@ -171,6 +173,7 @@ function openEditModel(model: LLMModel) {
     is_thinking: model.is_thinking,
     base_model_id: model.base_model_id,
     supports_thinking: model.supports_thinking,
+    thinking_only: model.thinking_only,
     icon: model.icon,
     sort_order: model.sort_order,
     is_active: model.is_active,
@@ -322,6 +325,33 @@ function getProviderName(providerId: number): string {
   return p ? p.display_name : String(providerId);
 }
 
+// 基础模型选项：只列出非 thinking 的模型，供 thinking 变体选择父模型
+const baseModelOptions = computed(() =>
+  models.value.filter((m) => !m.is_thinking),
+);
+
+// thinking_only 与 is_thinking/base_model_id 互斥
+watch(
+  () => modelForm.value.thinking_only,
+  (val) => {
+    if (val) {
+      modelForm.value.is_thinking = false;
+      modelForm.value.base_model_id = null;
+      modelForm.value.supports_thinking = true;
+    }
+  },
+);
+
+// is_thinking 与 thinking_only 互斥
+watch(
+  () => modelForm.value.is_thinking,
+  (val) => {
+    if (val) {
+      modelForm.value.thinking_only = false;
+    }
+  },
+);
+
 watch(page, fetchModels);
 onMounted(() => {
   fetchModels();
@@ -352,6 +382,7 @@ onMounted(() => {
               <th style="width: 160px">显示名称</th>
               <th style="width: 90px">Thinking</th>
               <th style="width: 100px">支持Thinking</th>
+              <th style="width: 90px">仅思考</th>
               <th style="width: 70px; text-align: right">排序</th>
               <th style="width: 80px">状态</th>
               <th style="width: 120px">操作</th>
@@ -359,12 +390,12 @@ onMounted(() => {
           </thead>
           <tbody v-if="loading">
             <tr v-for="i in 5" :key="i">
-              <td v-for="j in 8" :key="j"><div class="skeleton" /></td>
+              <td v-for="j in 9" :key="j"><div class="skeleton" /></td>
             </tr>
           </tbody>
           <tbody v-else-if="models.length === 0">
             <tr>
-              <td colspan="8" class="empty-cell">
+              <td colspan="9" class="empty-cell">
                 <div class="empty-state">
                   <Inbox :size="40" />
                   <p>暂无模型数据</p>
@@ -410,6 +441,16 @@ onMounted(() => {
                     {{ model.supports_thinking ? "支持" : "—" }}
                   </span>
                 </td>
+                <td>
+                  <span
+                    class="badge"
+                    :class="
+                      model.thinking_only ? 'badge--orange' : 'badge--gray'
+                    "
+                  >
+                    {{ model.thinking_only ? "仅思考" : "—" }}
+                  </span>
+                </td>
                 <td style="text-align: right">{{ model.sort_order }}</td>
                 <td>
                   <button
@@ -444,7 +485,7 @@ onMounted(() => {
 
               <!-- Routes expansion row -->
               <tr v-if="expandedModelId === model.id" class="routes-row">
-                <td colspan="8" class="routes-cell">
+                <td colspan="9" class="routes-cell">
                   <div class="routes-panel">
                     <div class="routes-panel__header">
                       <span class="routes-panel__title"
@@ -623,13 +664,20 @@ onMounted(() => {
                 />
               </div>
               <div class="form-group">
-                <label class="form-label">Base Model ID</label>
-                <input
+                <label class="form-label">基础模型</label>
+                <select
                   v-model.number="modelForm.base_model_id"
-                  type="number"
-                  class="num-input"
-                  placeholder="Thinking 模型填父模型ID"
-                />
+                  class="select-input"
+                >
+                  <option :value="null">无（非 Thinking 变体）</option>
+                  <option
+                    v-for="m in baseModelOptions"
+                    :key="m.id"
+                    :value="m.id"
+                  >
+                    {{ m.display_name }} ({{ m.model_key }})
+                  </option>
+                </select>
               </div>
               <div class="form-group checkboxes">
                 <label class="checkbox-label">
@@ -647,6 +695,14 @@ onMounted(() => {
                     class="checkbox"
                   />
                   支持 Thinking
+                </label>
+                <label class="checkbox-label">
+                  <input
+                    v-model="modelForm.thinking_only"
+                    type="checkbox"
+                    class="checkbox"
+                  />
+                  仅思考模式
                 </label>
                 <label class="checkbox-label">
                   <input
@@ -914,6 +970,11 @@ onMounted(() => {
 .badge--blue {
   background: #dbeafe;
   color: #1d4ed8;
+}
+
+.badge--orange {
+  background: #fff7ed;
+  color: #c2410c;
 }
 
 .action-buttons {
