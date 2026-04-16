@@ -261,7 +261,14 @@ onMounted(loadData);
                   :key="String(key)"
                   class="cap-tag"
                 >
-                  {{ key }}: {{ Array.isArray(val) ? val.join(", ") : val }}
+                  {{ key }}:
+                  {{
+                    Array.isArray(val)
+                      ? val.join(", ")
+                      : typeof val === "object" && val !== null
+                        ? Object.keys(val).filter((k) => (val as Record<string, unknown>)[k]).join(", ")
+                        : val
+                  }}
                 </span>
               </template>
               <span v-else class="info-value">—</span>
