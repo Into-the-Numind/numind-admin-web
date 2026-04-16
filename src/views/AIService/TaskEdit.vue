@@ -182,11 +182,16 @@ async function loadData() {
     task.value = taskRes;
     services.value = servicesRes.list ?? [];
 
-    // Populate form from existing binding
-    const binding = taskRes.binding;
-    selectedDefaultId.value = binding?.default_service_id ?? null;
-    selectedFallbackId.value = binding?.fallback_service_id ?? null;
-    selectedAllowedIds.value = [...(binding?.allowed_service_ids ?? [])];
+    // Populate form from API response (top-level fields, not nested binding)
+    const data = taskRes as any;
+    selectedDefaultId.value = data.default_service_id ?? null;
+    // fallbacks is an array of service objects; take first one's id
+    const fallbackArr = data.fallbacks as any[] | null;
+    selectedFallbackId.value =
+      fallbackArr && fallbackArr.length > 0 ? fallbackArr[0].id : null;
+    // allowed is an array of service objects; extract ids
+    const allowedArr = data.allowed as any[] | null;
+    selectedAllowedIds.value = (allowedArr ?? []).map((s: any) => s.id);
 
     // Pre-validate existing selections
     const toValidate = [
@@ -244,19 +249,24 @@ onMounted(loadData);
             <span class="info-value">{{ task.description || "—" }}</span>
           </div>
           <div class="info-item">
-            <span class="info-label">所需能力</span>
+            <span class="info-label">服务类型</span>
+            <span class="info-value">{{
+              (task as any).service_type?.toUpperCase() || "—"
+            }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">能力要求</span>
             <div class="cap-tags">
-              <span
-                v-for="cap in task.required_capabilities"
-                :key="cap"
-                class="cap-tag"
-                >{{ cap }}</span
-              >
-              <span
-                v-if="!task.required_capabilities?.length"
-                class="info-value"
-                >—</span
-              >
+              <template v-if="(task as any).requirements">
+                <span
+                  v-for="(val, key) in (task as any).requirements"
+                  :key="String(key)"
+                  class="cap-tag"
+                >
+                  {{ key }}: {{ Array.isArray(val) ? val.join(", ") : val }}
+                </span>
+              </template>
+              <span v-else class="info-value">—</span>
             </div>
           </div>
         </div>
