@@ -14,7 +14,6 @@ import type {
   MatchResult,
 } from "@/types/ai";
 import AppButton from "@/components/common/AppButton.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
 import ConfirmModal from "@/components/common/ConfirmModal.vue";
 import { useToast } from "@/composables/useToast";
 import { ArrowLeft, AlertTriangle, GripVertical } from "lucide-vue-next";
@@ -47,14 +46,19 @@ const overrideReason = ref("");
 const incompatibleBindings = ref<string[]>([]);
 const pendingForce = ref(false);
 
-// Service options (all + none) — use string values to avoid HTML select type mismatch
-const serviceOptions = computed(() => [
-  { label: "（无）", value: "0" },
-  ...services.value.map((s) => ({
-    label: s.display_name || s.name,
-    value: String(s.id),
-  })),
-]);
+// String-keyed service map for native <select>
+const defaultSelectValue = computed({
+  get: () => String(selectedDefaultId.value ?? ""),
+  set: (v: string) => {
+    selectedDefaultId.value = v ? Number(v) : null;
+  },
+});
+const fallbackSelectValue = computed({
+  get: () => String(selectedFallbackId.value ?? ""),
+  set: (v: string) => {
+    selectedFallbackId.value = v ? Number(v) : null;
+  },
+});
 
 function isCompatible(serviceId: number): boolean {
   const result = validationMap.value[serviceId];
@@ -80,18 +84,6 @@ async function validateService(serviceId: number) {
   } finally {
     validating.value[serviceId] = false;
   }
-}
-
-async function onDefaultChange(val: number | string) {
-  const id = Number(val);
-  selectedDefaultId.value = id || null;
-  if (id) await validateService(id);
-}
-
-async function onFallbackChange(val: number | string) {
-  const id = Number(val);
-  selectedFallbackId.value = id || null;
-  if (id) await validateService(id);
 }
 
 async function toggleAllowed(serviceId: number) {
@@ -286,11 +278,16 @@ onMounted(loadData);
         <div class="binding-row">
           <label class="binding-label">默认服务</label>
           <div class="binding-control">
-            <AppSelect
-              :model-value="String(selectedDefaultId ?? 0)"
-              :options="serviceOptions"
-              @update:model-value="onDefaultChange"
-            />
+            <select v-model="defaultSelectValue" class="native-select">
+              <option value="">（无）</option>
+              <option
+                v-for="svc in services"
+                :key="svc.id"
+                :value="String(svc.id)"
+              >
+                {{ svc.display_name || svc.name }}
+              </option>
+            </select>
             <div
               v-if="selectedDefaultId && !isCompatible(selectedDefaultId)"
               class="compat-warning"
@@ -305,11 +302,16 @@ onMounted(loadData);
         <div class="binding-row">
           <label class="binding-label">Fallback 服务</label>
           <div class="binding-control">
-            <AppSelect
-              :model-value="String(selectedFallbackId ?? 0)"
-              :options="serviceOptions"
-              @update:model-value="onFallbackChange"
-            />
+            <select v-model="fallbackSelectValue" class="native-select">
+              <option value="">（无）</option>
+              <option
+                v-for="svc in services"
+                :key="svc.id"
+                :value="String(svc.id)"
+              >
+                {{ svc.display_name || svc.name }}
+              </option>
+            </select>
             <div
               v-if="selectedFallbackId && !isCompatible(selectedFallbackId)"
               class="compat-warning"
@@ -488,6 +490,24 @@ onMounted(loadData);
 .info-value {
   font-size: var(--text-sm);
   color: var(--text);
+}
+
+.native-select {
+  width: 100%;
+  height: 38px;
+  padding: 0 var(--space-8) 0 var(--space-3);
+  font-size: var(--text-sm);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.native-select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-light);
 }
 
 .cap-tags {
