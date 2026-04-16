@@ -123,7 +123,7 @@ const router = createRouter({
           meta: { title: "任务配置" },
         },
         {
-          path: "ai-tasks/:id/edit",
+          path: "ai-tasks/:id([^/]+)/edit",
           name: "AITaskEdit",
           component: () => import("@/views/AIService/TaskEdit.vue"),
           meta: { title: "编辑任务配置" },
