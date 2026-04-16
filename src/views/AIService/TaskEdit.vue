@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, watch, nextTick } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import {
   getTaskApi,
@@ -182,6 +182,9 @@ async function loadData() {
     task.value = taskRes;
     services.value = servicesRes.list ?? [];
 
+    // Wait for Vue to render the service options before setting selected values
+    await nextTick();
+
     // Populate form from API response (top-level fields, not nested binding)
     const data = taskRes as any;
     selectedDefaultId.value = data.default_service_id ?? null;
@@ -192,6 +195,9 @@ async function loadData() {
     // allowed is an array of service objects; extract ids
     const allowedArr = data.allowed as any[] | null;
     selectedAllowedIds.value = (allowedArr ?? []).map((s: any) => s.id);
+
+    // Force another tick to ensure select elements reflect the new values
+    await nextTick();
 
     // Pre-validate existing selections
     const toValidate = [
