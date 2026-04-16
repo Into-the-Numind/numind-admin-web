@@ -1,93 +1,72 @@
 <script setup lang="ts">
-import type { Component } from 'vue'
+import type { Component } from "vue";
 
 interface Props {
-  label: string
-  value: string | number
-  icon: Component
-  color?: 'primary' | 'success' | 'warning' | 'danger' | 'info'
+  label: string;
+  value: string | number;
+  icon: Component;
+  color?: "primary" | "success" | "warning" | "danger" | "info";
 }
 
 withDefaults(defineProps<Props>(), {
-  color: 'primary'
-})
+  color: "primary",
+});
 </script>
 
 <template>
   <div class="stats-card" :class="`stats-card--${color}`">
-    <div class="stats-card__icon">
-      <component :is="icon" :size="24" />
-    </div>
-    <div class="stats-card__content">
-      <p class="stats-card__label">{{ label }}</p>
-      <p class="stats-card__value">{{ value }}</p>
-    </div>
+    <p class="stats-label">{{ label }}</p>
+    <p class="stats-value">{{ value }}</p>
   </div>
 </template>
 
 <style scoped>
 .stats-card {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-  padding: var(--space-5);
-  background: var(--surface);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-  border: 1px solid var(--border);
-  transition: box-shadow var(--transition-base), transform var(--transition-base);
+  background: var(--surface-low);
+  padding: 16px;
+  border-radius: var(--radius-sm);
+  border-left: 2px solid var(--outline-variant);
 }
 
-.stats-card:hover {
-  box-shadow: var(--shadow-md);
-  transform: translateY(-1px);
+.stats-card--primary {
+  border-left-color: var(--primary);
 }
 
-.stats-card__icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 48px;
-  height: 48px;
-  border-radius: var(--radius-lg);
-  flex-shrink: 0;
+.stats-card--tertiary,
+.stats-card--info {
+  border-left-color: var(--tertiary);
 }
 
-.stats-card--primary .stats-card__icon {
-  background: var(--primary-light);
-  color: var(--primary);
-}
-.stats-card--success .stats-card__icon {
-  background: var(--success-light);
-  color: var(--success);
-}
-.stats-card--warning .stats-card__icon {
-  background: var(--warning-light);
-  color: var(--warning);
-}
-.stats-card--danger .stats-card__icon {
-  background: var(--danger-light);
-  color: var(--danger);
-}
-.stats-card--info .stats-card__icon {
-  background: var(--info-light);
-  color: var(--info);
+.stats-card--success {
+  border-left-color: var(--success);
 }
 
-.stats-card__content {
-  min-width: 0;
+.stats-card--warning {
+  border-left-color: var(--warning);
 }
 
-.stats-card__label {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  margin-bottom: var(--space-1);
+.stats-card--danger {
+  border-left-color: var(--danger);
 }
 
-.stats-card__value {
-  font-size: var(--text-2xl);
+.stats-card--secondary {
+  border-left-color: var(--secondary);
+}
+
+.stats-label {
+  font-family: var(--font-label);
+  font-size: 10px;
   font-weight: 700;
-  color: var(--text);
-  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--on-surface-variant);
+  margin-bottom: 4px;
+}
+
+.stats-value {
+  font-family: var(--font-headline);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--on-background);
 }
 </style>
