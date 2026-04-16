@@ -571,7 +571,7 @@ onMounted(loadTemplate);
 
 .toggle-btn--active {
   background: var(--tertiary);
-  color: #fff;
+  color: var(--on-primary);
 }
 
 .nodes-list {
