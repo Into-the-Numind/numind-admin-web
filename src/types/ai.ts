@@ -84,8 +84,9 @@ export interface ValidateAgainstRequest {
 
 export interface MatchResult {
   compatible: boolean;
-  missing_capabilities: string[];
-  extra_capabilities: string[];
+  reasons: string[];
+  task_requirements?: Record<string, unknown>;
+  service_capabilities?: Record<string, unknown>;
 }
 
 // ====== Audit Log ======

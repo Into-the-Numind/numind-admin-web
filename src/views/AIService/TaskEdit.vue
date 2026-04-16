@@ -69,7 +69,7 @@ function isCompatible(serviceId: number): boolean {
 function incompatibleReason(serviceId: number): string {
   const result = validationMap.value[serviceId];
   if (!result || result.compatible) return "";
-  return `缺少能力: ${result.missing_capabilities.join(", ")}`;
+  return `缺少能力: ${result.reasons.join(", ")}`;
 }
 
 async function validateService(serviceId: number) {
@@ -102,7 +102,7 @@ function collectIncompatible(): string[] {
     if (!id) return;
     const r = validationMap.value[id];
     if (r && !r.compatible) {
-      msgs.push(`${label}: 缺少 ${r.missing_capabilities.join(", ")}`);
+      msgs.push(`${label}: 缺少 ${r.reasons.join(", ")}`);
     }
   };
   check(selectedDefaultId.value, "默认服务");
