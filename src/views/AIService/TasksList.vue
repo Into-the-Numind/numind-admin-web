@@ -44,7 +44,7 @@ function getDefaultServiceName(task: any): string {
   const id = task.default_service_id;
   if (!id) return "—";
   const svc = serviceMap.value[id];
-  return svc ? svc.display_name || svc.model_key : String(id);
+  return svc ? svc.display_name || svc.name : String(id);
 }
 
 async function fetchTasks() {
