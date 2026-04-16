@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { useToast } from '@/composables/useToast'
-import { CheckCircle, XCircle, Info } from 'lucide-vue-next'
+import { useToast } from "@/composables/useToast";
+import { CheckCircle, XCircle, Info } from "lucide-vue-next";
 
-const { toasts } = useToast()
+const { toasts } = useToast();
 </script>
 
 <template>
@@ -43,28 +43,31 @@ const { toasts } = useToast()
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-sm);
   font-size: var(--text-sm);
   font-weight: 500;
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-md);
   pointer-events: auto;
   min-width: 200px;
   max-width: 400px;
 }
 
 .toast--success {
-  background: #065F46;
-  color: #D1FAE5;
+  background: var(--success-soft);
+  color: #065f46;
+  border: 1px solid var(--success);
 }
 
 .toast--error {
-  background: #991B1B;
-  color: #FEE2E2;
+  background: var(--danger-soft);
+  color: var(--danger);
+  border: 1px solid var(--danger);
 }
 
 .toast--info {
-  background: #1E40AF;
-  color: #DBEAFE;
+  background: var(--info-soft);
+  color: #1e40af;
+  border: 1px solid var(--info);
 }
 
 .toast-enter-active {
