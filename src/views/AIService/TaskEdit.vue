@@ -47,12 +47,12 @@ const overrideReason = ref("");
 const incompatibleBindings = ref<string[]>([]);
 const pendingForce = ref(false);
 
-// Service options (all + none)
+// Service options (all + none) — use string values to avoid HTML select type mismatch
 const serviceOptions = computed(() => [
-  { label: "（无）", value: 0 },
+  { label: "（无）", value: "0" },
   ...services.value.map((s) => ({
     label: s.display_name || s.name,
-    value: s.id,
+    value: String(s.id),
   })),
 ]);
 
@@ -287,7 +287,7 @@ onMounted(loadData);
           <label class="binding-label">默认服务</label>
           <div class="binding-control">
             <AppSelect
-              :model-value="selectedDefaultId ?? 0"
+              :model-value="String(selectedDefaultId ?? 0)"
               :options="serviceOptions"
               @update:model-value="onDefaultChange"
             />
@@ -306,7 +306,7 @@ onMounted(loadData);
           <label class="binding-label">Fallback 服务</label>
           <div class="binding-control">
             <AppSelect
-              :model-value="selectedFallbackId ?? 0"
+              :model-value="String(selectedFallbackId ?? 0)"
               :options="serviceOptions"
               @update:model-value="onFallbackChange"
             />

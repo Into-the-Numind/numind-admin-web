@@ -54,9 +54,9 @@ export const updateTaskApi = (
 ) => put<TaskProfile>(`/v1/admin/ai/tasks/${taskKey}`, data);
 
 export const validateAgainstApi = (taskKey: string, serviceId: number) =>
-  post<MatchResult>(`/v1/admin/ai/tasks/${taskKey}/validate-against`, {
-    service_id: serviceId,
-  });
+  post<MatchResult>(
+    `/v1/admin/ai/services/${serviceId}/validate-against/${taskKey}`,
+  );
 
 // ====== Capability Schema ======
 
