@@ -368,8 +368,8 @@ function handleLogout() {
 }
 
 .nav-item--logout:hover {
-  background: rgba(239, 68, 68, 0.1);
-  color: #dc2626;
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 
 /* Collapsed state icon colors */
