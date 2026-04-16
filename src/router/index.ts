@@ -104,6 +104,36 @@ const router = createRouter({
           component: () => import("@/views/LLMModelsView.vue"),
           meta: { title: "LLM 模型" },
         },
+        {
+          path: "ai-services",
+          name: "AIServices",
+          component: () => import("@/views/AIService/ServicesList.vue"),
+          meta: { title: "AI 服务管理" },
+        },
+        {
+          path: "ai-services/:id/edit",
+          name: "AIServiceEdit",
+          component: () => import("@/views/AIService/ServiceEdit.vue"),
+          meta: { title: "编辑 AI 服务" },
+        },
+        {
+          path: "ai-tasks",
+          name: "AITasks",
+          component: () => import("@/views/AIService/TasksList.vue"),
+          meta: { title: "任务配置" },
+        },
+        {
+          path: "ai-tasks/:id/edit",
+          name: "AITaskEdit",
+          component: () => import("@/views/AIService/TaskEdit.vue"),
+          meta: { title: "编辑任务配置" },
+        },
+        {
+          path: "ai-audit-logs",
+          name: "AIAuditLogs",
+          component: () => import("@/views/AIService/AuditLogs.vue"),
+          meta: { title: "AI 审计日志" },
+        },
       ],
     },
     {
