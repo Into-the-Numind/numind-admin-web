@@ -39,11 +39,11 @@ function getCapabilityType(caps: string[]): string {
   return "LLM";
 }
 
-function getDefaultServiceName(task: TaskProfile): string {
-  const id = task.binding?.default_service_id;
+function getDefaultServiceName(task: any): string {
+  const id = task.default_service_id;
   if (!id) return "—";
   const svc = serviceMap.value[id];
-  return svc ? svc.display_name || svc.name : String(id);
+  return svc ? svc.display_name || svc.model_key : String(id);
 }
 
 async function fetchTasks() {
@@ -103,23 +103,17 @@ onMounted(fetchTasks);
     >
       <template #cell-service_type="{ row }">
         <span class="type-tag">
-          {{ getCapabilityType((row as TaskProfile).required_capabilities) }}
+          {{ (row as any).service_type?.toUpperCase() || "—" }}
         </span>
       </template>
 
       <template #cell-default_service="{ row }">
-        <span class="service-name">{{
-          getDefaultServiceName(row as TaskProfile)
-        }}</span>
+        <span class="service-name">{{ getDefaultServiceName(row) }}</span>
       </template>
 
-      <template #cell-fallback_count="{ row }">
-        {{ (row as TaskProfile).binding?.fallback_service_id != null ? 1 : 0 }}
-      </template>
+      <template #cell-fallback_count="{ row }"> 0 </template>
 
-      <template #cell-allowed_count="{ row }">
-        {{ (row as TaskProfile).binding?.allowed_service_ids?.length ?? 0 }}
-      </template>
+      <template #cell-allowed_count="{ row }"> 0 </template>
 
       <template #cell-actions="{ row }">
         <div class="action-buttons">
