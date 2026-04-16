@@ -264,8 +264,12 @@ function handleLogout() {
   opacity: 1;
 }
 
+.sidebar--collapsed .sidebar__header {
+  justify-content: center;
+}
+
 .sidebar--collapsed .sidebar__toggle {
-  display: none;
+  position: static;
 }
 
 .sidebar__nav {
@@ -274,6 +278,8 @@ function handleLogout() {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .nav-item {
