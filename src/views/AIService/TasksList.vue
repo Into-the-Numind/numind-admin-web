@@ -22,7 +22,7 @@ const error = ref("");
 const serviceMap = ref<Record<number, AIService>>({});
 
 const columns: Column[] = [
-  { key: "task_key", title: "任务 ID", width: "200px", align: "left" },
+  { key: "task_id", title: "任务 ID", width: "200px", align: "left" },
   { key: "display_name", title: "显示名称", width: "180px", align: "left" },
   { key: "service_type", title: "服务类型", width: "100px" },
   { key: "default_service", title: "默认服务", align: "left" },
@@ -70,7 +70,7 @@ async function fetchTasks() {
 }
 
 function goEdit(task: TaskProfile) {
-  router.push(`/ai-tasks/${task.task_key}/edit`);
+  router.push(`/ai-tasks/${task.task_id}/edit`);
 }
 
 watch(page, fetchTasks);

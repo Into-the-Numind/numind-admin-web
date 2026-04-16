@@ -69,7 +69,7 @@ export interface TaskBinding {
 }
 
 export interface TaskProfile {
-  task_key: string;
+  task_id: string;
   display_name: string;
   description: string;
   required_capabilities: string[];

@@ -73,7 +73,7 @@ async function validateService(serviceId: number) {
   if (validationMap.value[serviceId] !== undefined) return; // already validated
   validating.value[serviceId] = true;
   try {
-    const result = await validateAgainstApi(task.value.task_key, serviceId);
+    const result = await validateAgainstApi(task.value.task_id, serviceId);
     validationMap.value[serviceId] = result;
   } catch {
     // ignore validation errors
@@ -215,7 +215,7 @@ onMounted(loadData);
         </AppButton>
         <div>
           <h1 class="page-title">{{ task?.display_name ?? "任务配置" }}</h1>
-          <p v-if="task?.task_key" class="task-key">{{ task.task_key }}</p>
+          <p v-if="task?.task_id" class="task-key">{{ task.task_id }}</p>
         </div>
       </div>
       <AppButton variant="primary" :loading="saving" @click="save(false)">
