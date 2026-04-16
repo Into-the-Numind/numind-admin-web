@@ -845,9 +845,9 @@ async function saveTiers() {
 }
 
 .toggle-btn--active {
-  background: var(--success-light, #dcfce7);
-  color: var(--success, #16a34a);
-  border-color: var(--success, #16a34a);
+  background: var(--success-soft);
+  color: var(--success);
+  border-color: var(--success);
 }
 
 .toggle-btn:hover {
