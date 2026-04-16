@@ -155,6 +155,7 @@ onMounted(fetchServices);
 <template>
   <div class="page-container">
     <div class="page-header">
+      <p class="page-breadcrumb">AI Services / Management</p>
       <h1 class="page-title">AI 服务管理</h1>
       <AppButton variant="primary" @click="goCreate">
         <Plus :size="16" />
@@ -267,35 +268,16 @@ onMounted(fetchServices);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: var(--space-4);
-}
-
-.filter-bar {
-  display: flex;
-  gap: var(--space-3);
-  margin-bottom: var(--space-4);
-  align-items: center;
-}
-
-.error-alert {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  background: var(--danger-light);
-  color: #991b1b;
-  border-radius: var(--radius-md);
-  margin-bottom: var(--space-4);
-  font-size: var(--text-sm);
+  flex-wrap: wrap;
 }
 
 .type-tag {
+  font-family: var(--font-label);
   font-size: var(--text-xs);
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.05em;
-  color: var(--text-secondary);
-  background: var(--gray-100);
+  color: var(--on-surface-variant);
+  background: var(--surface-low);
   padding: 2px var(--space-2);
   border-radius: var(--radius-sm);
 }
@@ -306,7 +288,7 @@ onMounted(fetchServices);
 }
 
 .text-muted {
-  color: var(--text-secondary);
+  color: var(--on-surface-variant);
 }
 
 .action-buttons {

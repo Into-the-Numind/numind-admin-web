@@ -1,70 +1,72 @@
-/* =====================================================
- * 莫小派设计系统变量 — 管理端 (numind-admin-web)
- *
- * ⚠️ CURRENT STATE: Tailwind defaults. NOT yet rebranded.
- * Master brand lives in numind-web-v3/src/shared/styles/variables.css
- * Reference: /DESIGN.md §2-§5
- *
- * Rebrand planned as follow-up feature: admin-rebrand-to-design-md
- * Until rebrand completes, expect visual divergence from user-side.
- * ===================================================== */
-
 :root {
-  /* Primary */
-  --primary: #4F46E5;
-  --primary-hover: #4338CA;
-  --primary-light: #EEF2FF;
-  --primary-50: #EEF2FF;
-  --primary-100: #E0E7FF;
-  --primary-200: #C7D2FE;
+  /* === Surface Hierarchy (5 layers) === */
+  --surface-lowest: #ffffff;
+  --surface-low: #f0f4f7;
+  --surface: #e8eff3;
+  --surface-high: #e1e9ee;
+  --surface-highest: #d9e4ea;
+  --bg: #f8f9fb;
 
-  /* Neutral */
-  --gray-50: #F9FAFB;
-  --gray-100: #F3F4F6;
-  --gray-200: #E5E7EB;
-  --gray-300: #D1D5DB;
-  --gray-400: #9CA3AF;
-  --gray-500: #6B7280;
-  --gray-600: #4B5563;
-  --gray-700: #374151;
-  --gray-800: #1F2937;
-  --gray-900: #111827;
+  /* === Semantic Colors === */
+  --primary: #585f6a;
+  --primary-hover: #4c535e;
+  --on-primary: #f6f7ff;
+  --tertiary: #005eb6;
+  --tertiary-hover: #0052a1;
+  --secondary: #4e6079;
+  --on-background: #2a3439;
+  --on-surface: #2a3439;
+  --on-surface-variant: #566166;
+  --outline: #717c82;
+  --outline-variant: #a9b4b9;
 
-  /* Sidebar */
-  --sidebar-bg: #1E1B4B;
-  --sidebar-text: #C7D2FE;
-  --sidebar-active: #4F46E5;
-  --sidebar-hover: rgba(79, 70, 229, 0.2);
+  /* === Status Colors === */
+  --success: #10b981;
+  --success-soft: #ecfdf5;
+  --warning: #f59e0b;
+  --warning-soft: #fffbeb;
+  --danger: #9f403d;
+  --danger-soft: #fef2f2;
+  --info: #005eb6;
+  --info-soft: #eff6ff;
 
-  /* Status */
-  --success: #10B981;
-  --success-light: #D1FAE5;
-  --warning: #F59E0B;
-  --warning-light: #FEF3C7;
-  --danger: #EF4444;
-  --danger-light: #FEE2E2;
-  --info: #3B82F6;
-  --info-light: #DBEAFE;
+  /* === Legacy Aliases (for gradual migration) === */
+  --text: var(--on-background);
+  --text-secondary: var(--on-surface-variant);
+  --border: var(--outline-variant);
+  --primary-light: var(--info-soft);
+  --danger-light: var(--danger-soft);
+  --success-light: var(--success-soft);
+  --warning-light: var(--warning-soft);
+  --info-light: var(--info-soft);
+  --gray-50: var(--bg);
+  --gray-100: var(--surface-low);
+  --gray-200: var(--surface-high);
+  --gray-300: var(--surface-highest);
+  --gray-400: var(--outline-variant);
+  --gray-500: var(--outline);
+  --gray-600: var(--on-surface-variant);
+  --gray-700: var(--secondary);
+  --gray-800: var(--on-surface);
+  --gray-900: var(--on-background);
 
-  /* Surface */
-  --bg: #F9FAFB;
-  --surface: #FFFFFF;
-  --text: #111827;
-  --text-secondary: #6B7280;
-  --border: #E5E7EB;
+  /* === Typography === */
+  --font-headline: 'Manrope', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --font-label: 'Space Grotesk', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-noto: 'Noto Sans SC', sans-serif;
+  --font-sans: var(--font-body);
 
-  /* Typography */
-  --font-sans: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
-  --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
-  --text-xs: 0.75rem;
-  --text-sm: 0.875rem;
-  --text-base: 1rem;
-  --text-lg: 1.125rem;
-  --text-xl: 1.25rem;
-  --text-2xl: 1.5rem;
-  --text-3xl: 1.875rem;
+  --text-xs: 11px;
+  --text-sm: 13px;
+  --text-base: 14px;
+  --text-lg: 16px;
+  --text-xl: 20px;
+  --text-2xl: 24px;
+  --text-3xl: 30px;
 
-  /* Spacing */
+  /* === Spacing (keep existing names) === */
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 0.75rem;
@@ -75,24 +77,31 @@
   --space-10: 2.5rem;
   --space-12: 3rem;
 
-  /* Radius */
-  --radius-sm: 0.375rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
-  --radius-xl: 1rem;
+  /* === Radius (much smaller — industrial feel) === */
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-pill: 999px;
 
-  /* Shadows */
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  /* === Shadows (lighter) === */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.08);
 
-  /* Transitions */
+  /* === Transitions === */
   --transition-fast: 150ms ease;
   --transition-base: 200ms ease;
   --transition-slow: 300ms ease;
 
-  /* Layout */
-  --sidebar-width: 240px;
+  /* === Layout === */
+  --sidebar-width: 256px;
   --sidebar-collapsed-width: 64px;
   --header-height: 0px;
+
+  /* === Sidebar (light theme) === */
+  --sidebar-bg: var(--bg);
+  --sidebar-text: var(--on-surface-variant);
+  --sidebar-active: var(--tertiary);
+  --sidebar-hover: var(--surface-high);
 }

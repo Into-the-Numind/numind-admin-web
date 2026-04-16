@@ -1,25 +1,25 @@
 <script setup lang="ts">
 interface Props {
-  visible: boolean
-  title?: string
-  message?: string
-  confirmText?: string
-  cancelText?: string
-  danger?: boolean
+  visible: boolean;
+  title?: string;
+  message?: string;
+  confirmText?: string;
+  cancelText?: string;
+  danger?: boolean;
 }
 
 withDefaults(defineProps<Props>(), {
-  title: '确认操作',
-  message: '确定要执行此操作吗？',
-  confirmText: '确定',
-  cancelText: '取消',
-  danger: false
-})
+  title: "确认操作",
+  message: "确定要执行此操作吗？",
+  confirmText: "确定",
+  cancelText: "取消",
+  danger: false,
+});
 
 defineEmits<{
-  confirm: []
-  cancel: []
-}>()
+  confirm: [];
+  cancel: [];
+}>();
 </script>
 
 <template>
@@ -37,7 +37,10 @@ defineEmits<{
             <slot>{{ message }}</slot>
           </p>
           <div class="modal-actions">
-            <button class="modal-btn modal-btn--cancel" @click="$emit('cancel')">
+            <button
+              class="modal-btn modal-btn--cancel"
+              @click="$emit('cancel')"
+            >
               {{ cancelText }}
             </button>
             <button
@@ -67,8 +70,8 @@ defineEmits<{
 }
 
 .modal-card {
-  background: var(--surface);
-  border-radius: var(--radius-xl);
+  background: var(--surface-lowest);
+  border-radius: var(--radius-sm);
   padding: var(--space-6);
   width: 90%;
   max-width: 420px;
@@ -76,15 +79,16 @@ defineEmits<{
 }
 
 .modal-title {
+  font-family: var(--font-headline);
   font-size: var(--text-lg);
-  font-weight: 600;
-  color: var(--text);
+  font-weight: 700;
+  color: var(--on-surface);
   margin-bottom: var(--space-3);
 }
 
 .modal-message {
   font-size: var(--text-sm);
-  color: var(--text-secondary);
+  color: var(--on-surface-variant);
   margin-bottom: var(--space-6);
   line-height: 1.6;
 }
@@ -97,36 +101,38 @@ defineEmits<{
 
 .modal-btn {
   padding: var(--space-2) var(--space-4);
-  border-radius: var(--radius-md);
-  font-size: var(--text-sm);
-  font-weight: 500;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-label);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
   cursor: pointer;
   transition: all var(--transition-fast);
   border: none;
 }
 
 .modal-btn--cancel {
-  background: var(--gray-100);
-  color: var(--text);
+  background: var(--surface-high);
+  color: var(--on-surface);
 }
 .modal-btn--cancel:hover {
-  background: var(--gray-200);
+  background: var(--surface-highest);
 }
 
 .modal-btn--confirm {
   background: var(--primary);
-  color: #fff;
+  color: var(--on-primary);
 }
 .modal-btn--confirm:hover {
-  background: var(--primary-hover);
+  opacity: 0.9;
 }
 
 .modal-btn--danger {
   background: var(--danger);
-  color: #fff;
+  color: white;
 }
 .modal-btn--danger:hover {
-  background: #DC2626;
+  opacity: 0.9;
 }
 
 .modal-enter-active,

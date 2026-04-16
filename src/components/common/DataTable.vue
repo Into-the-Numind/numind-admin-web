@@ -1,24 +1,30 @@
 <script setup lang="ts" generic="T extends Record<string, any>">
-import { computed, ref } from 'vue'
-import { ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, Inbox } from 'lucide-vue-next'
+import { computed, ref } from "vue";
+import {
+  ChevronsLeft,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsRight,
+  Inbox,
+} from "lucide-vue-next";
 
 export interface Column {
-  key: string
-  title: string
-  width?: string
-  align?: 'left' | 'center' | 'right'
+  key: string;
+  title: string;
+  width?: string;
+  align?: "left" | "center" | "right";
 }
 
 interface Props {
-  columns: Column[]
-  data: T[]
-  loading?: boolean
-  total?: number
-  page?: number
-  pageSize?: number
-  rowKey?: string
-  emptyText?: string
-  clickable?: boolean
+  columns: Column[];
+  data: T[];
+  loading?: boolean;
+  total?: number;
+  page?: number;
+  pageSize?: number;
+  rowKey?: string;
+  emptyText?: string;
+  clickable?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -26,45 +32,47 @@ const props = withDefaults(defineProps<Props>(), {
   total: 0,
   page: 1,
   pageSize: 20,
-  rowKey: 'id',
-  emptyText: '暂无数据',
-  clickable: false
-})
+  rowKey: "id",
+  emptyText: "暂无数据",
+  clickable: false,
+});
 
 const emit = defineEmits<{
-  'update:page': [page: number]
-  'row-click': [row: T]
-}>()
+  "update:page": [page: number];
+  "row-click": [row: T];
+}>();
 
-const totalPages = computed(() => Math.max(1, Math.ceil(props.total / props.pageSize)))
+const totalPages = computed(() =>
+  Math.max(1, Math.ceil(props.total / props.pageSize)),
+);
 
 const pageNumbers = computed(() => {
-  const pages: number[] = []
-  const total = totalPages.value
-  const current = props.page
-  let start = Math.max(1, current - 2)
-  const end = Math.min(total, start + 4)
-  start = Math.max(1, end - 4)
+  const pages: number[] = [];
+  const total = totalPages.value;
+  const current = props.page;
+  let start = Math.max(1, current - 2);
+  const end = Math.min(total, start + 4);
+  start = Math.max(1, end - 4);
   for (let i = start; i <= end; i++) {
-    pages.push(i)
+    pages.push(i);
   }
-  return pages
-})
+  return pages;
+});
 
-const jumpInput = ref('')
+const jumpInput = ref("");
 
 function goToPage(page: number) {
   if (page >= 1 && page <= totalPages.value && page !== props.page) {
-    emit('update:page', page)
+    emit("update:page", page);
   }
 }
 
 function handleJump() {
-  const p = parseInt(jumpInput.value, 10)
+  const p = parseInt(jumpInput.value, 10);
   if (!isNaN(p)) {
-    goToPage(p)
+    goToPage(p);
   }
-  jumpInput.value = ''
+  jumpInput.value = "";
 }
 </script>
 
@@ -115,8 +123,12 @@ function handleJump() {
                 :key="col.key"
                 :class="`align-${col.align || 'center'}`"
               >
-                <slot :name="`cell-${col.key}`" :row="row" :value="row[col.key]">
-                  {{ row[col.key] ?? '-' }}
+                <slot
+                  :name="`cell-${col.key}`"
+                  :row="row"
+                  :value="row[col.key]"
+                >
+                  {{ row[col.key] ?? "-" }}
                 </slot>
               </td>
             </tr>
@@ -126,9 +138,7 @@ function handleJump() {
     </div>
 
     <div v-if="total > 0" class="pagination">
-      <span class="pagination__info">
-        共 {{ total }} 条
-      </span>
+      <span class="pagination__info"> 共 {{ total }} 条 </span>
       <div class="pagination__controls">
         <button
           class="pagination__btn"
@@ -188,10 +198,10 @@ function handleJump() {
 
 <style scoped>
 .data-table-wrapper {
-  background: var(--surface);
-  border-radius: var(--radius-lg);
+  background: var(--surface-lowest);
+  border-radius: var(--radius-sm);
   box-shadow: var(--shadow-sm);
-  border: 1px solid var(--border);
+  border: 1px solid rgba(169, 180, 185, 0.05);
   overflow: hidden;
 }
 
@@ -205,22 +215,24 @@ function handleJump() {
 }
 
 .data-table th {
-  padding: var(--space-3) var(--space-4);
-  font-size: var(--text-xs);
-  font-weight: 600;
+  font-family: var(--font-label);
+  font-size: 11px;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-secondary);
-  background: var(--gray-50);
-  border-bottom: 1px solid var(--border);
+  letter-spacing: 0.1em;
+  color: var(--on-surface-variant);
+  padding: 16px 24px;
+  background: rgba(240, 244, 247, 0.5);
+  border-bottom: 1px solid rgba(169, 180, 185, 0.1);
   white-space: nowrap;
 }
 
 .data-table td {
-  padding: var(--space-3) var(--space-4);
-  font-size: var(--text-sm);
-  color: var(--text);
-  border-bottom: 1px solid var(--gray-100);
+  font-family: var(--font-body);
+  font-size: 13px;
+  padding: 16px 24px;
+  color: var(--on-surface);
+  border-bottom: 1px solid rgba(169, 180, 185, 0.05);
   vertical-align: middle;
 }
 
@@ -233,16 +245,22 @@ function handleJump() {
 }
 
 .data-row:hover {
-  background: var(--gray-50);
+  background: var(--surface-low);
 }
 
 .data-row:last-child td {
   border-bottom: none;
 }
 
-.align-left { text-align: left; }
-.align-center { text-align: center; }
-.align-right { text-align: right; }
+.align-left {
+  text-align: left;
+}
+.align-center {
+  text-align: center;
+}
+.align-right {
+  text-align: right;
+}
 
 .empty-cell {
   padding: 0 !important;
@@ -254,7 +272,7 @@ function handleJump() {
   align-items: center;
   justify-content: center;
   padding: var(--space-12) var(--space-6);
-  color: var(--gray-400);
+  color: var(--on-surface-variant);
 }
 
 .empty-state p {
@@ -264,28 +282,38 @@ function handleJump() {
 
 .skeleton {
   height: 16px;
-  background: linear-gradient(90deg, var(--gray-100) 25%, var(--gray-200) 50%, var(--gray-100) 75%);
+  background: linear-gradient(
+    90deg,
+    var(--surface-low) 25%,
+    var(--surface-high) 50%,
+    var(--surface-low) 75%
+  );
   background-size: 200% 100%;
   border-radius: var(--radius-sm);
   animation: shimmer 1.5s infinite;
 }
 
 @keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 .pagination {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-3) var(--space-4);
-  border-top: 1px solid var(--border);
+  padding: 16px 24px;
+  background: rgba(240, 244, 247, 0.3);
+  border-top: 1px solid rgba(169, 180, 185, 0.1);
 }
 
 .pagination__info {
   font-size: var(--text-xs);
-  color: var(--text-secondary);
+  color: var(--on-surface-variant);
 }
 
 .pagination__controls {
@@ -301,18 +329,17 @@ function handleJump() {
   min-width: 32px;
   height: 32px;
   padding: 0 var(--space-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border: none;
+  border-radius: var(--radius-sm);
   font-size: var(--text-sm);
-  color: var(--text);
-  background: var(--surface);
+  color: var(--on-surface);
+  background: transparent;
   cursor: pointer;
   transition: all var(--transition-fast);
 }
 
 .pagination__btn:hover:not(:disabled) {
-  background: var(--gray-50);
-  border-color: var(--gray-300);
+  background: var(--surface-high);
 }
 
 .pagination__btn:disabled {
@@ -321,14 +348,13 @@ function handleJump() {
 }
 
 .pagination__btn--active {
-  background: var(--primary);
-  color: #fff;
-  border-color: var(--primary);
+  font-weight: 700;
+  color: var(--on-surface);
+  background: transparent;
 }
 
 .pagination__btn--active:hover {
-  background: var(--primary-hover) !important;
-  border-color: var(--primary-hover) !important;
+  background: var(--surface-high);
 }
 
 .pagination__jump {
@@ -342,11 +368,11 @@ function handleJump() {
   width: 56px;
   height: 32px;
   padding: 0 var(--space-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border: 1px solid rgba(169, 180, 185, 0.1);
+  border-radius: var(--radius-sm);
   font-size: var(--text-sm);
-  color: var(--text);
-  background: var(--surface);
+  color: var(--on-surface);
+  background: var(--surface-lowest);
   text-align: center;
   outline: none;
   transition: border-color var(--transition-fast);

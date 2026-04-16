@@ -14,6 +14,7 @@ import type {
   MatchResult,
 } from "@/types/ai";
 import AppButton from "@/components/common/AppButton.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import ConfirmModal from "@/components/common/ConfirmModal.vue";
 import { useToast } from "@/composables/useToast";
 import { ArrowLeft, AlertTriangle, GripVertical } from "lucide-vue-next";
@@ -46,16 +47,24 @@ const overrideReason = ref("");
 const incompatibleBindings = ref<string[]>([]);
 const pendingForce = ref(false);
 
-// String-keyed service map for native <select>
+// Options for AppSelect
+const serviceSelectOptions = computed(() => [
+  { label: "（无）", value: "" },
+  ...services.value.map((svc) => ({
+    label: svc.display_name || svc.name,
+    value: String(svc.id),
+  })),
+]);
+
 const defaultSelectValue = computed({
   get: () => String(selectedDefaultId.value ?? ""),
-  set: (v: string) => {
+  set: (v: string | number | null) => {
     selectedDefaultId.value = v ? Number(v) : null;
   },
 });
 const fallbackSelectValue = computed({
   get: () => String(selectedFallbackId.value ?? ""),
-  set: (v: string) => {
+  set: (v: string | number | null) => {
     selectedFallbackId.value = v ? Number(v) : null;
   },
 });
@@ -212,18 +221,25 @@ onMounted(loadData);
 <template>
   <div class="page-container">
     <div class="page-header">
-      <div class="page-header__left">
-        <AppButton variant="ghost" size="sm" @click="router.push('/ai-tasks')">
-          <ArrowLeft :size="16" />
-        </AppButton>
-        <div>
-          <h1 class="page-title">{{ task?.display_name ?? "任务配置" }}</h1>
-          <p v-if="task?.task_id" class="task-key">{{ task.task_id }}</p>
+      <p class="page-breadcrumb">AI Services / Task Edit</p>
+      <div class="page-header__row">
+        <div class="page-header__left">
+          <AppButton
+            variant="ghost"
+            size="sm"
+            @click="router.push('/ai-tasks')"
+          >
+            <ArrowLeft :size="16" />
+          </AppButton>
+          <div>
+            <h1 class="page-title">{{ task?.display_name ?? "任务配置" }}</h1>
+            <p v-if="task?.task_id" class="task-key">{{ task.task_id }}</p>
+          </div>
         </div>
+        <AppButton variant="primary" :loading="saving" @click="save(false)">
+          保存
+        </AppButton>
       </div>
-      <AppButton variant="primary" :loading="saving" @click="save(false)">
-        保存
-      </AppButton>
     </div>
 
     <!-- Loading skeleton -->
@@ -285,16 +301,10 @@ onMounted(loadData);
         <div class="binding-row">
           <label class="binding-label">默认服务</label>
           <div class="binding-control">
-            <select v-model="defaultSelectValue" class="native-select">
-              <option value="">（无）</option>
-              <option
-                v-for="svc in services"
-                :key="svc.id"
-                :value="String(svc.id)"
-              >
-                {{ svc.display_name || svc.name }}
-              </option>
-            </select>
+            <AppSelect
+              v-model="defaultSelectValue"
+              :options="serviceSelectOptions"
+            />
             <div
               v-if="selectedDefaultId && !isCompatible(selectedDefaultId)"
               class="compat-warning"
@@ -309,16 +319,10 @@ onMounted(loadData);
         <div class="binding-row">
           <label class="binding-label">Fallback 服务</label>
           <div class="binding-control">
-            <select v-model="fallbackSelectValue" class="native-select">
-              <option value="">（无）</option>
-              <option
-                v-for="svc in services"
-                :key="svc.id"
-                :value="String(svc.id)"
-              >
-                {{ svc.display_name || svc.name }}
-              </option>
-            </select>
+            <AppSelect
+              v-model="fallbackSelectValue"
+              :options="serviceSelectOptions"
+            />
             <div
               v-if="selectedFallbackId && !isCompatible(selectedFallbackId)"
               class="compat-warning"
@@ -405,11 +409,11 @@ onMounted(loadData);
 </template>
 
 <style scoped>
-.page-header {
+.page-header__row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: var(--space-6);
+  width: 100%;
 }
 
 .page-header__left {
@@ -420,34 +424,21 @@ onMounted(loadData);
 
 .task-key {
   font-size: var(--text-xs);
-  color: var(--text-secondary);
+  color: var(--on-surface-variant);
   font-family: var(--font-mono);
   margin-top: 2px;
-}
-
-.error-alert {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  background: var(--danger-light);
-  color: #991b1b;
-  border-radius: var(--radius-md);
-  margin-bottom: var(--space-4);
-  font-size: var(--text-sm);
 }
 
 .skeleton-block {
   height: 400px;
   background: linear-gradient(
     90deg,
-    var(--gray-100) 25%,
-    var(--gray-200) 50%,
-    var(--gray-100) 75%
+    var(--surface-low) 25%,
+    var(--surface-high) 50%,
+    var(--surface-low) 75%
   );
   background-size: 200% 100%;
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-sm);
   animation: shimmer 1.5s infinite;
 }
 
@@ -461,17 +452,10 @@ onMounted(loadData);
 }
 
 .form-section {
-  background: var(--surface);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border);
+  background: var(--surface-lowest);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(169, 180, 185, 0.05);
   padding: var(--space-6);
-  margin-bottom: var(--space-4);
-}
-
-.section-title {
-  font-size: var(--text-base);
-  font-weight: 600;
-  color: var(--text);
   margin-bottom: var(--space-4);
 }
 
@@ -488,33 +472,18 @@ onMounted(loadData);
 }
 
 .info-label {
-  font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--text-secondary);
+  font-family: var(--font-label);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--on-surface-variant);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   min-width: 80px;
 }
 
 .info-value {
   font-size: var(--text-sm);
-  color: var(--text);
-}
-
-.native-select {
-  width: 100%;
-  height: 38px;
-  padding: 0 var(--space-8) 0 var(--space-3);
-  font-size: var(--text-sm);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  color: var(--text);
-  cursor: pointer;
-}
-
-.native-select:focus {
-  outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px var(--primary-light);
+  color: var(--on-surface);
 }
 
 .cap-tags {
@@ -526,8 +495,8 @@ onMounted(loadData);
 .cap-tag {
   font-size: var(--text-xs);
   font-family: var(--font-mono);
-  background: var(--gray-100);
-  color: var(--text-secondary);
+  background: var(--surface-low);
+  color: var(--on-surface-variant);
   padding: 2px var(--space-2);
   border-radius: var(--radius-sm);
 }
@@ -544,9 +513,12 @@ onMounted(loadData);
 }
 
 .binding-label {
-  font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--text);
+  font-family: var(--font-label);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--on-surface-variant);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   min-width: 100px;
   flex-shrink: 0;
 }
@@ -573,7 +545,7 @@ onMounted(loadData);
   max-height: 320px;
   overflow-y: auto;
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   padding: var(--space-2);
 }
 
@@ -589,16 +561,16 @@ onMounted(loadData);
 }
 
 .allowed-item:hover {
-  background: var(--gray-50);
+  background: var(--surface-low);
 }
 
 .allowed-item--selected {
-  background: var(--primary-light, #eff6ff);
+  background: var(--primary-container, #eff6ff);
   border-color: var(--primary);
 }
 
 .allowed-item--incompatible {
-  background: var(--warning-light, #fffbeb);
+  background: var(--warning-soft, #fffbeb);
   border-color: var(--warning, #d97706);
 }
 
@@ -608,21 +580,22 @@ onMounted(loadData);
 }
 
 .grip-icon {
-  color: var(--gray-300);
+  color: var(--on-surface-variant);
+  opacity: 0.4;
   flex-shrink: 0;
 }
 
 .svc-name {
   font-size: var(--text-sm);
-  color: var(--text);
+  color: var(--on-surface);
   flex: 1;
 }
 
 .svc-type {
   font-size: var(--text-xs);
   font-weight: 600;
-  color: var(--text-secondary);
-  background: var(--gray-100);
+  color: var(--on-surface-variant);
+  background: var(--surface-low);
   padding: 1px var(--space-2);
   border-radius: var(--radius-sm);
 }
@@ -634,17 +607,9 @@ onMounted(loadData);
 
 .empty-hint {
   font-size: var(--text-sm);
-  color: var(--text-secondary);
+  color: var(--on-surface-variant);
   text-align: center;
   padding: var(--space-4);
-}
-
-.form-label {
-  font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--text);
-  margin-bottom: var(--space-2);
-  display: block;
 }
 
 .force-dialog-body {
@@ -655,7 +620,7 @@ onMounted(loadData);
 
 .force-desc {
   font-size: var(--text-sm);
-  color: var(--text-secondary);
+  color: var(--on-surface-variant);
 }
 
 .incompat-list {
@@ -677,10 +642,10 @@ onMounted(loadData);
   width: 100%;
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   font-size: var(--text-sm);
-  color: var(--text);
-  background: var(--surface);
+  color: var(--on-surface);
+  background: var(--surface-low);
   resize: vertical;
   transition: border-color var(--transition-fast);
   box-sizing: border-box;

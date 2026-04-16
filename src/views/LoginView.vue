@@ -1,33 +1,33 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
-import AppButton from '@/components/common/AppButton.vue'
-import AppInput from '@/components/common/AppInput.vue'
-import { Lock, User } from 'lucide-vue-next'
+import { ref } from "vue";
+import { useRouter } from "vue-router";
+import { useAuthStore } from "@/stores/auth";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import { Lock, User } from "lucide-vue-next";
 
-const router = useRouter()
-const authStore = useAuthStore()
+const router = useRouter();
+const authStore = useAuthStore();
 
-const username = ref('')
-const password = ref('')
-const loading = ref(false)
-const error = ref('')
+const username = ref("");
+const password = ref("");
+const loading = ref(false);
+const error = ref("");
 
 async function handleLogin() {
   if (!username.value || !password.value) {
-    error.value = '请输入用户名和密码'
-    return
+    error.value = "请输入用户名和密码";
+    return;
   }
-  loading.value = true
-  error.value = ''
+  loading.value = true;
+  error.value = "";
   try {
-    await authStore.login(username.value, password.value)
-    router.push('/')
+    await authStore.login(username.value, password.value);
+    router.push("/");
   } catch (e) {
-    error.value = (e as Error).message || '登录失败，请重试'
+    error.value = (e as Error).message || "登录失败，请重试";
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 </script>
@@ -44,7 +44,11 @@ async function handleLogin() {
       <form class="login-form" @submit.prevent="handleLogin">
         <div class="form-group">
           <label class="form-label">用户名</label>
-          <AppInput v-model="username" placeholder="请输入管理员用户名" size="lg">
+          <AppInput
+            v-model="username"
+            placeholder="请输入管理员用户名"
+            size="lg"
+          >
             <template #prefix>
               <User :size="18" class="input-icon" />
             </template>
@@ -53,7 +57,12 @@ async function handleLogin() {
 
         <div class="form-group">
           <label class="form-label">密码</label>
-          <AppInput v-model="password" type="password" placeholder="请输入密码" size="lg">
+          <AppInput
+            v-model="password"
+            type="password"
+            placeholder="请输入密码"
+            size="lg"
+          >
             <template #prefix>
               <Lock :size="18" class="input-icon" />
             </template>
@@ -84,17 +93,17 @@ async function handleLogin() {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #1E1B4B 0%, #312E81 40%, #4338CA 100%);
+  background: var(--bg);
   padding: var(--space-4);
 }
 
 .login-card {
   width: 100%;
   max-width: 420px;
-  background: var(--surface);
-  border-radius: var(--radius-xl);
-  padding: var(--space-10);
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  background: var(--surface-lowest);
+  border-radius: var(--radius-sm);
+  padding: var(--space-8);
+  box-shadow: var(--shadow-md);
 }
 
 .login-header {
@@ -103,20 +112,21 @@ async function handleLogin() {
 }
 
 .login-logo {
-  width: 56px;
-  height: 56px;
+  width: 40px;
+  height: 40px;
   background: var(--primary);
-  color: #fff;
-  border-radius: var(--radius-lg);
+  color: var(--on-primary);
+  border-radius: var(--radius-sm);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  font-size: var(--text-2xl);
+  font-size: var(--text-lg);
   margin-bottom: var(--space-4);
 }
 
 .login-title {
+  font-family: var(--font-headline);
   font-size: var(--text-2xl);
   font-weight: 700;
   color: var(--text);
@@ -124,8 +134,11 @@ async function handleLogin() {
 }
 
 .login-subtitle {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
+  font-family: var(--font-label);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--on-surface-variant);
 }
 
 .login-form {

@@ -16,6 +16,7 @@ import {
 } from "@/api/llm";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import ConfirmModal from "@/components/common/ConfirmModal.vue";
 import {
   Plus,
@@ -330,6 +331,36 @@ const baseModelOptions = computed(() =>
   models.value.filter((m) => !m.is_thinking),
 );
 
+const baseModelSelectOptions = computed(() => [
+  { label: "无（非 Thinking 变体）", value: 0 },
+  ...baseModelOptions.value.map((m) => ({
+    label: `${m.display_name} (${m.model_key})`,
+    value: m.id,
+  })),
+]);
+
+const baseModelSelectValue = computed({
+  get: () => modelForm.value.base_model_id ?? 0,
+  set: (v: string | number | null) => {
+    modelForm.value.base_model_id = v && Number(v) !== 0 ? Number(v) : null;
+  },
+});
+
+const providerSelectOptions = computed(() => [
+  { label: "选择供应商", value: 0 },
+  ...providers.value.map((p) => ({
+    label: `${p.display_name} (${p.name})`,
+    value: p.id,
+  })),
+]);
+
+const providerSelectValue = computed({
+  get: () => routeForm.value.provider_id ?? 0,
+  set: (v: string | number | null) => {
+    routeForm.value.provider_id = v && Number(v) !== 0 ? Number(v) : null;
+  },
+});
+
 // thinking_only 与 is_thinking/base_model_id 互斥
 watch(
   () => modelForm.value.thinking_only,
@@ -362,6 +393,7 @@ onMounted(() => {
 <template>
   <div class="page-container">
     <div class="page-header">
+      <p class="page-breadcrumb">LLM / Models</p>
       <h1 class="page-title">LLM 模型管理</h1>
       <AppButton variant="primary" @click="openCreateModel">
         <Plus :size="16" />
@@ -592,17 +624,23 @@ onMounted(() => {
       <div v-if="total > pageSize" class="pagination">
         <span class="pagination__info">共 {{ total }} 条</span>
         <div class="pagination__controls">
-          <button class="pagination__btn" :disabled="page <= 1" @click="page--">
+          <AppButton
+            size="sm"
+            variant="secondary"
+            :disabled="page <= 1"
+            @click="page--"
+          >
             上一页
-          </button>
+          </AppButton>
           <span class="pagination__page">{{ page }} / {{ totalPages() }}</span>
-          <button
-            class="pagination__btn"
+          <AppButton
+            size="sm"
+            variant="secondary"
             :disabled="page >= totalPages()"
             @click="page++"
           >
             下一页
-          </button>
+          </AppButton>
         </div>
       </div>
     </div>
@@ -665,19 +703,10 @@ onMounted(() => {
               </div>
               <div class="form-group">
                 <label class="form-label">基础模型</label>
-                <select
-                  v-model.number="modelForm.base_model_id"
-                  class="select-input"
-                >
-                  <option :value="null">无（非 Thinking 变体）</option>
-                  <option
-                    v-for="m in baseModelOptions"
-                    :key="m.id"
-                    :value="m.id"
-                  >
-                    {{ m.display_name }} ({{ m.model_key }})
-                  </option>
-                </select>
+                <AppSelect
+                  v-model="baseModelSelectValue"
+                  :options="baseModelSelectOptions"
+                />
               </div>
               <div class="form-group checkboxes">
                 <label class="checkbox-label">
@@ -749,15 +778,10 @@ onMounted(() => {
             <div class="form-grid">
               <div class="form-group form-group--full">
                 <label class="form-label">供应商 *</label>
-                <select
-                  v-model.number="routeForm.provider_id"
-                  class="select-input"
-                >
-                  <option :value="null" disabled>选择供应商</option>
-                  <option v-for="p in providers" :key="p.id" :value="p.id">
-                    {{ p.display_name }} ({{ p.name }})
-                  </option>
-                </select>
+                <AppSelect
+                  v-model="providerSelectValue"
+                  :options="providerSelectOptions"
+                />
               </div>
               <div class="form-group form-group--full">
                 <label class="form-label">供应商模型名 *</label>
@@ -831,14 +855,15 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
 }
 
 /* Table card */
 .table-card {
-  background: var(--surface);
-  border-radius: var(--radius-lg);
+  background: var(--surface-lowest);
+  border-radius: var(--radius-sm);
   box-shadow: var(--shadow-sm);
-  border: 1px solid var(--border);
+  border: 1px solid rgba(169, 180, 185, 0.05);
   overflow: hidden;
 }
 
@@ -853,12 +878,13 @@ onMounted(() => {
 
 .main-table th {
   padding: var(--space-3) var(--space-4);
+  font-family: var(--font-label);
   font-size: var(--text-xs);
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--text-secondary);
-  background: var(--gray-50);
+  color: var(--on-surface-variant);
+  background: var(--surface-low);
   border-bottom: 1px solid var(--border);
   white-space: nowrap;
   text-align: left;
@@ -867,8 +893,8 @@ onMounted(() => {
 .main-table td {
   padding: var(--space-3) var(--space-4);
   font-size: var(--text-sm);
-  color: var(--text);
-  border-bottom: 1px solid var(--gray-100);
+  color: var(--on-surface);
+  border-bottom: 1px solid var(--border);
   vertical-align: middle;
 }
 
@@ -877,16 +903,16 @@ onMounted(() => {
 }
 
 .model-row:hover {
-  background: var(--gray-50);
+  background: var(--surface-low);
 }
 
 .model-row--expanded {
-  background: var(--gray-50);
+  background: var(--surface-low);
 }
 
 /* Routes expansion */
 .routes-row {
-  background: #f8faff;
+  background: var(--surface-low);
 }
 
 .routes-cell {
@@ -908,12 +934,12 @@ onMounted(() => {
 .routes-panel__title {
   font-size: var(--text-sm);
   font-weight: 600;
-  color: var(--text);
+  color: var(--on-surface);
 }
 
 .routes-empty {
   font-size: var(--text-sm);
-  color: var(--text-secondary);
+  color: var(--on-surface-variant);
   padding: var(--space-3) 0;
 }
 
@@ -925,17 +951,20 @@ onMounted(() => {
 
 .routes-table th {
   text-align: left;
-  font-weight: 500;
-  color: var(--text-secondary);
+  font-family: var(--font-label);
+  font-weight: 700;
+  color: var(--on-surface-variant);
   font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   padding: var(--space-2) var(--space-3);
   border-bottom: 1px solid var(--border);
 }
 
 .routes-table td {
   padding: var(--space-2) var(--space-3);
-  border-bottom: 1px solid var(--gray-100);
-  color: var(--text);
+  border-bottom: 1px solid var(--border);
+  color: var(--on-surface);
 }
 
 .routes-table th.align-right,
@@ -958,23 +987,23 @@ onMounted(() => {
 }
 
 .badge--gray {
-  background: var(--gray-100);
-  color: var(--text-secondary);
+  background: var(--surface-low);
+  color: var(--on-surface-variant);
 }
 
 .badge--purple {
-  background: #ede9fe;
-  color: #7c3aed;
+  background: var(--tertiary-container, #ede9fe);
+  color: var(--on-tertiary-container, #7c3aed);
 }
 
 .badge--blue {
-  background: #dbeafe;
-  color: #1d4ed8;
+  background: var(--info-soft, #dbeafe);
+  color: var(--info, #1d4ed8);
 }
 
 .badge--orange {
-  background: #fff7ed;
-  color: #c2410c;
+  background: var(--warning-soft, #fff7ed);
+  color: var(--warning, #c2410c);
 }
 
 .action-buttons {
@@ -983,7 +1012,7 @@ onMounted(() => {
 }
 
 .expand-btn {
-  color: var(--text-secondary);
+  color: var(--on-surface-variant);
   padding: 2px;
   border-radius: var(--radius-sm);
   transition: color var(--transition-fast);
@@ -992,7 +1021,7 @@ onMounted(() => {
 }
 
 .expand-btn:hover {
-  color: var(--text);
+  color: var(--on-surface);
 }
 
 .toggle-btn {
@@ -1002,13 +1031,13 @@ onMounted(() => {
   font-weight: 500;
   cursor: pointer;
   border: 1px solid var(--border);
-  background: var(--gray-100);
-  color: var(--text-secondary);
+  background: var(--surface-low);
+  color: var(--on-surface-variant);
   transition: all var(--transition-fast);
 }
 
 .toggle-btn--active {
-  background: var(--success-light, #dcfce7);
+  background: var(--success-soft, #dcfce7);
   color: var(--success, #16a34a);
   border-color: var(--success, #16a34a);
 }
@@ -1022,9 +1051,9 @@ onMounted(() => {
   height: 16px;
   background: linear-gradient(
     90deg,
-    var(--gray-100) 25%,
-    var(--gray-200) 50%,
-    var(--gray-100) 75%
+    var(--surface-low) 25%,
+    var(--surface-high) 50%,
+    var(--surface-low) 75%
   );
   background-size: 200% 100%;
   border-radius: var(--radius-sm);
@@ -1045,20 +1074,6 @@ onMounted(() => {
   padding: 0 !important;
 }
 
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-12) var(--space-6);
-  color: var(--gray-400);
-}
-
-.empty-state p {
-  margin-top: var(--space-3);
-  font-size: var(--text-sm);
-}
-
 /* Pagination */
 .pagination {
   display: flex;
@@ -1070,7 +1085,7 @@ onMounted(() => {
 
 .pagination__info {
   font-size: var(--text-xs);
-  color: var(--text-secondary);
+  color: var(--on-surface-variant);
 }
 
 .pagination__controls {
@@ -1081,52 +1096,10 @@ onMounted(() => {
 
 .pagination__page {
   font-size: var(--text-sm);
-  color: var(--text-secondary);
-}
-
-.pagination__btn {
-  height: 32px;
-  padding: 0 var(--space-3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  font-size: var(--text-sm);
-  color: var(--text);
-  background: var(--surface);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.pagination__btn:hover:not(:disabled) {
-  background: var(--gray-50);
-}
-
-.pagination__btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
+  color: var(--on-surface-variant);
 }
 
 /* Form */
-.form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-4);
-  margin-bottom: var(--space-6);
-}
-
-.form-group--full {
-  grid-column: 1 / -1;
-}
-
-.form-label {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--text);
-  margin-bottom: var(--space-2);
-}
-
 .checkboxes {
   display: flex;
   flex-direction: column;
@@ -1140,7 +1113,7 @@ onMounted(() => {
   gap: var(--space-2);
   font-size: var(--text-sm);
   cursor: pointer;
-  color: var(--text);
+  color: var(--on-surface);
 }
 
 .checkbox {
@@ -1149,25 +1122,19 @@ onMounted(() => {
   accent-color: var(--primary);
 }
 
-.num-input,
-.select-input {
+.num-input {
   width: 100%;
   height: 38px;
   padding: 0 var(--space-3);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   font-size: var(--text-sm);
-  color: var(--text);
-  background: var(--surface);
+  color: var(--on-surface);
+  background: var(--surface-low);
   font-family: var(--font-mono);
 }
 
-.select-input {
-  font-family: inherit;
-}
-
-.num-input:focus,
-.select-input:focus {
+.num-input:focus {
   outline: none;
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);

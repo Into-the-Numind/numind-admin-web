@@ -5,6 +5,7 @@ import {
   type BillingOverview, type UserConsumption, type OperationStat
 } from '@/api/billing'
 import StatsCard from '@/components/common/StatsCard.vue'
+import DataTable, { type Column } from '@/components/common/DataTable.vue'
 import {
   DollarSign, TrendingUp, BarChart3, Percent,
   ArrowUpRight, ArrowDownRight, Minus
@@ -22,6 +23,7 @@ const error = ref('')
 
 // Compute module breakdown from by_operation data
 interface ModuleRow {
+  id: string
   label: string
   call_count: number
   cost_cents: number
@@ -34,7 +36,7 @@ const moduleBreakdown = computed<ModuleRow[]>(() => {
   for (const op of data.value.by_operation) {
     opMap.set(op.operation, op)
   }
-  return Object.values(moduleGroups).map(group => {
+  return Object.entries(moduleGroups).map(([key, group]) => {
     let call_count = 0
     let cost_cents = 0
     let revenue_cents = 0
@@ -46,7 +48,7 @@ const moduleBreakdown = computed<ModuleRow[]>(() => {
         revenue_cents += stat.revenue_cents
       }
     }
-    return { label: group.label, call_count, cost_cents, revenue_cents }
+    return { id: key, label: group.label, call_count, cost_cents, revenue_cents }
   }).filter(r => r.call_count > 0 || r.cost_cents > 0)
 })
 
@@ -64,6 +66,51 @@ function costPercent(cost: number): string {
 function margin(cost: number, revenue: number): string {
   return formatCost(revenue - cost)
 }
+
+// Column definitions for DataTable
+const moduleColumns: Column[] = [
+  { key: 'label', title: '功能模块', align: 'left' },
+  { key: 'call_count', title: '调用次数', align: 'right' },
+  { key: 'cost_cents', title: '成本', align: 'right' },
+  { key: 'revenue_cents', title: '收入', align: 'right' },
+  { key: 'margin', title: '毛利', align: 'right' },
+  { key: 'margin_rate', title: '毛利率', align: 'right' },
+]
+
+const providerColumns: Column[] = [
+  { key: 'provider', title: '供应商', align: 'left' },
+  { key: 'call_count', title: '调用次数', align: 'right' },
+  { key: 'cost_cents', title: '成本', align: 'right' },
+  { key: 'revenue_cents', title: '收入', align: 'right' },
+  { key: 'cost_percent', title: '占比(成本)', align: 'right' },
+]
+
+const topUsersColumns: Column[] = [
+  { key: 'rank', title: '排名', align: 'center', width: '60px' },
+  { key: 'nickname', title: '客户', align: 'left' },
+  { key: 'call_count', title: '调用次数', align: 'right' },
+  { key: 'cost_cents', title: '消费', align: 'right' },
+]
+
+// Computed data for provider table (add provider label + id)
+const providerData = computed(() => {
+  if (!data.value?.by_provider) return []
+  return data.value.by_provider.map(item => ({
+    ...item,
+    id: item.provider,
+    provider_label: providerLabels[item.provider] || item.provider,
+  }))
+})
+
+// Computed data for top users table (add rank + id)
+const topUsersData = computed(() => {
+  return topUsers.value.map((user, idx) => ({
+    ...user,
+    id: user.user_id,
+    rank: idx + 1,
+    display_name: user.nickname || user.username,
+  }))
+})
 
 onMounted(async () => {
   try {
@@ -84,6 +131,7 @@ onMounted(async () => {
 <template>
   <div class="page-container">
     <div class="page-header">
+      <p class="page-breadcrumb">Billing / Overview</p>
       <h1 class="page-title">用量概览</h1>
     </div>
 
@@ -96,7 +144,7 @@ onMounted(async () => {
         label="本月收入"
         :value="data ? formatCost(data.month_revenue_cents) : '-'"
         :icon="TrendingUp"
-        color="primary"
+        color="info"
       />
       <StatsCard
         label="本月成本"
@@ -140,7 +188,7 @@ onMounted(async () => {
         label="累计成本"
         :value="data ? formatCost(data.total_cost_cents) : '-'"
         :icon="Minus"
-        color="warning"
+        color="danger"
       />
       <StatsCard
         label="累计毛利"
@@ -151,110 +199,86 @@ onMounted(async () => {
     </div>
 
     <!-- Module Breakdown -->
-    <div class="card">
-      <div class="card-body">
-        <h2 class="section-title">按功能模块</h2>
-        <div class="runs-table-container">
-          <table class="runs-table">
-            <thead>
-              <tr>
-                <th>功能模块</th>
-                <th class="align-right">调用次数</th>
-                <th class="align-right">成本</th>
-                <th class="align-right">收入</th>
-                <th class="align-right">毛利</th>
-                <th class="align-right">毛利率</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-if="loading">
-                <td colspan="6" class="loading-cell"><div class="spinner" /></td>
-              </tr>
-              <tr v-else-if="!moduleBreakdown.length">
-                <td colspan="6" class="empty-cell">暂无数据</td>
-              </tr>
-              <tr v-for="row in moduleBreakdown" :key="row.label">
-                <td class="text-medium">{{ row.label }}</td>
-                <td class="align-right text-mono">{{ formatNumber(row.call_count) }}</td>
-                <td class="align-right text-mono">{{ formatCost(row.cost_cents) }}</td>
-                <td class="align-right text-mono">{{ formatCost(row.revenue_cents) }}</td>
-                <td class="align-right text-mono">{{ margin(row.cost_cents, row.revenue_cents) }}</td>
-                <td class="align-right text-mono">{{ formatMarginRate(row.cost_cents, row.revenue_cents) }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+    <div class="section-container">
+      <h2 class="section-title">按功能模块</h2>
+      <DataTable
+        :columns="moduleColumns"
+        :data="moduleBreakdown"
+        :loading="loading"
+        row-key="id"
+        empty-text="暂无数据"
+      >
+        <template #cell-call_count="{ value }">
+          <span class="text-mono">{{ formatNumber(value as number) }}</span>
+        </template>
+        <template #cell-cost_cents="{ row }">
+          <span class="text-mono">{{ formatCost((row as ModuleRow).cost_cents) }}</span>
+        </template>
+        <template #cell-revenue_cents="{ row }">
+          <span class="text-mono">{{ formatCost((row as ModuleRow).revenue_cents) }}</span>
+        </template>
+        <template #cell-margin="{ row }">
+          <span class="text-mono">{{ margin((row as ModuleRow).cost_cents, (row as ModuleRow).revenue_cents) }}</span>
+        </template>
+        <template #cell-margin_rate="{ row }">
+          <span class="text-mono">{{ formatMarginRate((row as ModuleRow).cost_cents, (row as ModuleRow).revenue_cents) }}</span>
+        </template>
+      </DataTable>
     </div>
 
     <!-- Two-column: Provider + User ranking -->
     <div class="bottom-row">
       <!-- Provider Breakdown -->
-      <div class="card">
-        <div class="card-body">
-          <h2 class="section-title">按供应商</h2>
-          <div class="runs-table-container">
-            <table class="runs-table">
-              <thead>
-                <tr>
-                  <th>供应商</th>
-                  <th class="align-right">调用次数</th>
-                  <th class="align-right">成本</th>
-                  <th class="align-right">收入</th>
-                  <th class="align-right">占比(成本)</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-if="loading">
-                  <td colspan="5" class="loading-cell"><div class="spinner" /></td>
-                </tr>
-                <tr v-else-if="!data?.by_provider?.length">
-                  <td colspan="5" class="empty-cell">暂无数据</td>
-                </tr>
-                <tr v-for="item in data?.by_provider" :key="item.provider">
-                  <td class="text-medium">{{ providerLabels[item.provider] || item.provider }}</td>
-                  <td class="align-right text-mono">{{ formatNumber(item.call_count) }}</td>
-                  <td class="align-right text-mono">{{ formatCost(item.cost_cents) }}</td>
-                  <td class="align-right text-mono">{{ formatCost(item.revenue_cents) }}</td>
-                  <td class="align-right text-mono">{{ costPercent(item.cost_cents) }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
+      <div class="section-container">
+        <h2 class="section-title">按供应商</h2>
+        <DataTable
+          :columns="providerColumns"
+          :data="providerData"
+          :loading="loading"
+          row-key="id"
+          empty-text="暂无数据"
+        >
+          <template #cell-provider="{ row }">
+            <span class="text-medium">{{ (row as Record<string, any>).provider_label }}</span>
+          </template>
+          <template #cell-call_count="{ value }">
+            <span class="text-mono">{{ formatNumber(value as number) }}</span>
+          </template>
+          <template #cell-cost_cents="{ row }">
+            <span class="text-mono">{{ formatCost((row as Record<string, any>).cost_cents) }}</span>
+          </template>
+          <template #cell-revenue_cents="{ row }">
+            <span class="text-mono">{{ formatCost((row as Record<string, any>).revenue_cents) }}</span>
+          </template>
+          <template #cell-cost_percent="{ row }">
+            <span class="text-mono">{{ costPercent((row as Record<string, any>).cost_cents) }}</span>
+          </template>
+        </DataTable>
       </div>
 
       <!-- User Top 10 -->
-      <div class="card">
-        <div class="card-body">
-          <h2 class="section-title">本月客户消费排行</h2>
-          <div class="runs-table-container">
-            <table class="runs-table">
-              <thead>
-                <tr>
-                  <th>排名</th>
-                  <th>客户</th>
-                  <th class="align-right">调用次数</th>
-                  <th class="align-right">消费</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-if="loading">
-                  <td colspan="4" class="loading-cell"><div class="spinner" /></td>
-                </tr>
-                <tr v-else-if="!topUsers.length">
-                  <td colspan="4" class="empty-cell">暂无数据</td>
-                </tr>
-                <tr v-for="(user, idx) in topUsers" :key="user.user_id">
-                  <td class="text-mono">{{ idx + 1 }}</td>
-                  <td class="text-medium">{{ user.nickname || user.username }}</td>
-                  <td class="align-right text-mono">{{ formatNumber(user.call_count) }}</td>
-                  <td class="align-right text-mono">{{ formatCost(user.cost_cents) }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
+      <div class="section-container">
+        <h2 class="section-title">本月客户消费排行</h2>
+        <DataTable
+          :columns="topUsersColumns"
+          :data="topUsersData"
+          :loading="loading"
+          row-key="id"
+          empty-text="暂无数据"
+        >
+          <template #cell-rank="{ value }">
+            <span class="text-mono">{{ value }}</span>
+          </template>
+          <template #cell-nickname="{ row }">
+            <span class="text-medium">{{ (row as Record<string, any>).display_name }}</span>
+          </template>
+          <template #cell-call_count="{ value }">
+            <span class="text-mono">{{ formatNumber(value as number) }}</span>
+          </template>
+          <template #cell-cost_cents="{ row }">
+            <span class="text-mono">{{ formatCost((row as Record<string, any>).cost_cents) }}</span>
+          </template>
+        </DataTable>
       </div>
     </div>
   </div>
@@ -280,6 +304,21 @@ onMounted(async () => {
   }
 }
 
+.section-container {
+  background: var(--surface-lowest);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-6);
+}
+
+.section-title {
+  font-family: var(--font-headline);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: var(--space-4);
+}
+
 .bottom-row {
   display: grid;
   grid-template-columns: 3fr 2fr;
@@ -293,55 +332,13 @@ onMounted(async () => {
   }
 }
 
-.section-title {
-  font-size: var(--text-base);
-  font-weight: 600;
-  color: var(--text);
-  margin-bottom: var(--space-4);
+.text-medium {
+  font-weight: 500;
 }
 
-.runs-table-container {
-  overflow-x: auto;
-}
-
-.runs-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.runs-table th {
-  padding: var(--space-3) var(--space-4);
-  text-align: left;
-  font-size: var(--text-xs);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-secondary);
-  border-bottom: 1px solid var(--border);
-}
-
-.runs-table td {
-  padding: var(--space-3) var(--space-4);
-  font-size: var(--text-sm);
-  border-bottom: 1px solid var(--gray-100);
-}
-
-.runs-table tr:last-child td {
-  border-bottom: none;
-}
-
-.text-medium { font-weight: 500; }
 .text-mono {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
-}
-.align-right { text-align: right; }
-
-.loading-cell,
-.empty-cell {
-  text-align: center;
-  padding: var(--space-8) !important;
-  color: var(--text-secondary);
 }
 </style>

@@ -1,41 +1,61 @@
 <script setup lang="ts">
 interface Props {
-  modelValue: string
-  placeholder?: string
-  type?: 'text' | 'password' | 'email' | 'number' | 'tel' | 'url'
-  disabled?: boolean
-  size?: 'sm' | 'md' | 'lg'
-  label?: string
-  error?: string
+  modelValue: string | number | null;
+  placeholder?: string;
+  type?: "text" | "password" | "email" | "number" | "tel" | "url" | "date";
+  disabled?: boolean;
+  size?: "sm" | "md" | "lg";
+  step?: string;
+  label?: string;
+  error?: string;
 }
 
-withDefaults(defineProps<Props>(), {
-  placeholder: '',
-  type: 'text',
+const props = withDefaults(defineProps<Props>(), {
+  placeholder: "",
+  type: "text",
   disabled: false,
-  size: 'md',
+  size: "md",
+  step: undefined,
   label: undefined,
-  error: undefined
-})
+  error: undefined,
+});
 
-defineEmits<{
-  'update:modelValue': [value: string]
-}>()
+const emit = defineEmits<{
+  "update:modelValue": [value: string | number | null];
+}>();
+
+function onInput(event: Event) {
+  const val = (event.target as HTMLInputElement).value;
+  if (props.type === "number") {
+    // If the original modelValue was null and input is empty, emit null back
+    if (val === "" && props.modelValue === null) {
+      emit("update:modelValue", null);
+    } else {
+      emit("update:modelValue", val === "" ? 0 : Number(val));
+    }
+  } else {
+    emit("update:modelValue", val);
+  }
+}
 </script>
 
 <template>
   <div class="app-input-field">
     <label v-if="label" class="app-input-label">{{ label }}</label>
-    <div class="app-input-wrapper" :class="[`app-input--${size}`, { 'app-input-wrapper--error': !!error }]">
+    <div
+      class="app-input-wrapper"
+      :class="[`app-input--${size}`, { 'app-input-wrapper--error': !!error }]"
+    >
       <slot name="prefix" />
       <input
         class="app-input"
         :type="type"
-        :value="modelValue"
+        :value="modelValue ?? ''"
         :placeholder="placeholder"
         :disabled="disabled"
-        @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"
-      >
+        :step="step"
+        @input="onInput"
+      />
       <slot name="suffix" />
     </div>
     <p v-if="error" class="app-input-error">{{ error }}</p>
@@ -47,16 +67,16 @@ defineEmits<{
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  background: var(--surface-low);
+  border: none;
+  border-radius: var(--radius-sm);
+  transition: box-shadow var(--transition-fast);
   overflow: hidden;
 }
 
 .app-input-wrapper:focus-within {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px var(--primary-light);
+  outline: none;
+  box-shadow: 0 0 0 1px var(--tertiary);
 }
 
 .app-input {
@@ -64,17 +84,18 @@ defineEmits<{
   border: none;
   outline: none;
   background: transparent;
-  color: var(--text);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  color: var(--on-surface);
   width: 100%;
 }
 
 .app-input::placeholder {
-  color: var(--gray-400);
+  color: var(--on-surface-variant);
 }
 
 .app-input:disabled {
-  background: var(--gray-50);
-  color: var(--gray-400);
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
@@ -104,18 +125,20 @@ defineEmits<{
 
 .app-input-label {
   display: block;
-  font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--text);
+  font-family: var(--font-label);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--on-surface-variant);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .app-input-wrapper--error {
-  border-color: var(--danger);
+  box-shadow: 0 0 0 1px var(--danger);
 }
 
 .app-input-wrapper--error:focus-within {
-  box-shadow: 0 0 0 3px var(--danger-light);
-  border-color: var(--danger);
+  box-shadow: 0 0 0 1px var(--danger);
 }
 
 .app-input-error {
