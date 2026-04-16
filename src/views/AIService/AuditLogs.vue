@@ -138,7 +138,10 @@ onMounted(fetchLogs);
 <template>
   <div class="page-container">
     <div class="page-header">
-      <h1 class="page-title">AI 审计日志</h1>
+      <div>
+        <p class="page-breadcrumb">AI Services / Audit Logs</p>
+        <h1 class="page-title">AI 审计日志</h1>
+      </div>
     </div>
 
     <!-- Filters -->
@@ -247,21 +250,6 @@ onMounted(fetchLogs);
 </template>
 
 <style scoped>
-.page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: var(--space-4);
-}
-
-.filter-bar {
-  display: flex;
-  gap: var(--space-3);
-  margin-bottom: var(--space-4);
-  align-items: center;
-  flex-wrap: wrap;
-}
-
 .date-range {
   display: flex;
   align-items: center;
@@ -269,7 +257,7 @@ onMounted(fetchLogs);
 }
 
 .date-sep {
-  color: var(--text-secondary);
+  color: var(--on-surface-variant);
   font-size: var(--text-sm);
 }
 
@@ -277,10 +265,10 @@ onMounted(fetchLogs);
   height: 32px;
   padding: 0 var(--space-2);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   font-size: var(--text-xs);
-  color: var(--text);
-  background: var(--surface);
+  color: var(--on-surface);
+  background: var(--surface-low);
   outline: none;
   transition: border-color var(--transition-fast);
 }
@@ -289,26 +277,13 @@ onMounted(fetchLogs);
   border-color: var(--primary);
 }
 
-.error-alert {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  background: var(--danger-light);
-  color: #991b1b;
-  border-radius: var(--radius-md);
-  margin-bottom: var(--space-4);
-  font-size: var(--text-sm);
-}
-
 .text-mono {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
 }
 
 .text-muted {
-  color: var(--text-secondary);
+  color: var(--on-surface-variant);
 }
 
 .action-badge {
@@ -321,33 +296,33 @@ onMounted(fetchLogs);
 }
 
 .action-badge--success {
-  background: var(--success-light);
-  color: #065f46;
+  background: var(--success-soft);
+  color: var(--success);
 }
 
 .action-badge--danger {
-  background: var(--danger-light);
-  color: #991b1b;
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 
 .action-badge--warning {
-  background: var(--warning-light);
-  color: #92400e;
+  background: var(--warning-soft);
+  color: var(--warning);
 }
 
 .action-badge--info {
-  background: var(--info-light);
-  color: #1e40af;
+  background: var(--info-soft, var(--surface-low));
+  color: var(--info, var(--primary));
 }
 
 .target-text {
   font-size: var(--text-sm);
-  color: var(--text);
+  color: var(--on-surface);
 }
 
 .reason-text {
   font-size: var(--text-sm);
-  color: var(--text-secondary);
+  color: var(--on-surface-variant);
   max-width: 240px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -362,7 +337,7 @@ onMounted(fetchLogs);
   width: 24px;
   height: 24px;
   border-radius: var(--radius-sm);
-  color: var(--text-secondary);
+  color: var(--on-surface-variant);
   cursor: pointer;
   transition: background var(--transition-fast);
   border: none;
@@ -370,13 +345,13 @@ onMounted(fetchLogs);
 }
 
 .expand-btn:hover {
-  background: var(--gray-100);
-  color: var(--text);
+  background: var(--surface-low);
+  color: var(--on-surface);
 }
 
 .diff-panel {
-  background: var(--gray-900, #111827);
-  border-radius: var(--radius-md);
+  background: var(--surface-low);
+  border-radius: var(--radius-sm);
   margin-bottom: var(--space-2);
   overflow: hidden;
   border: 1px solid var(--border);
@@ -384,11 +359,14 @@ onMounted(fetchLogs);
 
 .diff-panel__header {
   padding: var(--space-2) var(--space-4);
+  font-family: var(--font-label);
   font-size: var(--text-xs);
-  font-weight: 500;
-  color: var(--gray-400);
-  background: var(--gray-800, #1f2937);
-  border-bottom: 1px solid var(--gray-700, #374151);
+  font-weight: 700;
+  color: var(--on-surface-variant);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: var(--surface-high);
+  border-bottom: 1px solid var(--border);
 }
 
 .diff-pre {
@@ -396,7 +374,8 @@ onMounted(fetchLogs);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   line-height: 1.6;
-  color: #d1fae5;
+  background: var(--surface-low);
+  color: var(--on-surface);
   white-space: pre-wrap;
   word-break: break-all;
   margin: 0;

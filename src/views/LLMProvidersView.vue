@@ -178,6 +178,7 @@ onMounted(fetchProviders);
 <template>
   <div class="page-container">
     <div class="page-header">
+      <p class="page-breadcrumb">LLM / Providers</p>
       <h1 class="page-title">LLM 供应商</h1>
       <AppButton variant="primary" @click="openCreate">
         <Plus :size="16" />
@@ -327,6 +328,7 @@ onMounted(fetchProviders);
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
 }
 
 .text-mono {
@@ -335,7 +337,7 @@ onMounted(fetchProviders);
 }
 
 .text-muted {
-  color: var(--text-secondary);
+  color: var(--on-surface-variant);
 }
 
 .action-buttons {
@@ -350,13 +352,13 @@ onMounted(fetchProviders);
   font-weight: 500;
   cursor: pointer;
   border: 1px solid var(--border);
-  background: var(--gray-100);
-  color: var(--text-secondary);
+  background: var(--surface-low);
+  color: var(--on-surface-variant);
   transition: all var(--transition-fast);
 }
 
 .toggle-btn--active {
-  background: var(--success-light, #dcfce7);
+  background: var(--success-soft, #dcfce7);
   color: var(--success, #16a34a);
   border-color: var(--success, #16a34a);
 }
@@ -365,30 +367,9 @@ onMounted(fetchProviders);
   opacity: 0.8;
 }
 
-.form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-4);
-  margin-bottom: var(--space-6);
-}
-
-.form-group--full {
-  grid-column: 1 / -1;
-}
-
-.form-label {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--text);
-  margin-bottom: var(--space-2);
-}
-
 .hint {
   font-weight: 400;
-  color: var(--text-secondary);
+  color: var(--on-surface-variant);
   font-size: var(--text-xs);
 }
 

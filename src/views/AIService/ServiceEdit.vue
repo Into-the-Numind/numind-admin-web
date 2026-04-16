@@ -283,21 +283,24 @@ onMounted(loadData);
 <template>
   <div class="page-container">
     <div class="page-header">
-      <div class="page-header__left">
-        <AppButton
-          variant="ghost"
-          size="sm"
-          @click="router.push('/ai-services')"
-        >
-          <ArrowLeft :size="16" />
+      <p class="page-breadcrumb">AI Services / {{ isNew ? "New" : "Edit" }}</p>
+      <div class="page-header__row">
+        <div class="page-header__left">
+          <AppButton
+            variant="ghost"
+            size="sm"
+            @click="router.push('/ai-services')"
+          >
+            <ArrowLeft :size="16" />
+          </AppButton>
+          <h1 class="page-title">
+            {{ isNew ? "新建 AI 服务" : "编辑 AI 服务" }}
+          </h1>
+        </div>
+        <AppButton variant="primary" :loading="saving" @click="save">
+          {{ isNew ? "创建" : "保存" }}
         </AppButton>
-        <h1 class="page-title">
-          {{ isNew ? "新建 AI 服务" : "编辑 AI 服务" }}
-        </h1>
       </div>
-      <AppButton variant="primary" :loading="saving" @click="save">
-        {{ isNew ? "创建" : "保存" }}
-      </AppButton>
     </div>
 
     <!-- Loading skeleton -->
@@ -518,11 +521,11 @@ onMounted(loadData);
 </template>
 
 <style scoped>
-.page-header {
+.page-header__row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: var(--space-6);
+  width: 100%;
 }
 
 .page-header__left {
@@ -531,29 +534,16 @@ onMounted(loadData);
   gap: var(--space-3);
 }
 
-.error-alert {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  background: var(--danger-light);
-  color: #991b1b;
-  border-radius: var(--radius-md);
-  margin-bottom: var(--space-4);
-  font-size: var(--text-sm);
-}
-
 .skeleton-block {
   height: 400px;
   background: linear-gradient(
     90deg,
-    var(--gray-100) 25%,
-    var(--gray-200) 50%,
-    var(--gray-100) 75%
+    var(--surface-low) 25%,
+    var(--surface-high) 50%,
+    var(--surface-low) 75%
   );
   background-size: 200% 100%;
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-sm);
   animation: shimmer 1.5s infinite;
 }
 
@@ -567,9 +557,9 @@ onMounted(loadData);
 }
 
 .form-section {
-  background: var(--surface);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border);
+  background: var(--surface-lowest);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(169, 180, 185, 0.05);
   padding: var(--space-6);
   margin-bottom: var(--space-4);
 }
@@ -581,28 +571,15 @@ onMounted(loadData);
   margin-bottom: var(--space-4);
 }
 
-.section-title {
-  font-size: var(--text-base);
-  font-weight: 600;
-  color: var(--text);
-  margin-bottom: var(--space-4);
-}
-
 .section-header .section-title {
   margin-bottom: 0;
 }
 
 .section-desc {
   font-size: var(--text-sm);
-  color: var(--text-secondary);
+  color: var(--on-surface-variant);
   margin-bottom: var(--space-4);
   margin-top: calc(-1 * var(--space-2));
-}
-
-.form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-4);
 }
 
 .form-group {
@@ -614,19 +591,9 @@ onMounted(loadData);
   grid-column: 1 / -1;
 }
 
-.form-label {
-  font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--text);
-  margin-bottom: var(--space-2);
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
 .hint {
   font-weight: 400;
-  color: var(--text-secondary);
+  color: var(--on-surface-variant);
   font-size: var(--text-xs);
 }
 
@@ -660,14 +627,14 @@ onMounted(loadData);
   gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all var(--transition-fast);
-  background: var(--surface);
+  background: var(--surface-lowest);
 }
 
 .capability-item--active {
-  background: var(--primary-light, #eff6ff);
+  background: var(--primary-container, #eff6ff);
   border-color: var(--primary);
 }
 
@@ -679,12 +646,12 @@ onMounted(loadData);
   font-size: var(--text-xs);
   font-family: var(--font-mono);
   font-weight: 600;
-  color: var(--text);
+  color: var(--on-surface);
 }
 
 .cap-label {
   font-size: var(--text-xs);
-  color: var(--text-secondary);
+  color: var(--on-surface-variant);
 }
 
 .capability-manual {
@@ -694,7 +661,7 @@ onMounted(loadData);
 
 .route-card {
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   padding: var(--space-4);
   margin-bottom: var(--space-3);
 }
@@ -709,18 +676,18 @@ onMounted(loadData);
 .route-index {
   font-size: var(--text-sm);
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--on-surface-variant);
 }
 
 .json-textarea {
   width: 100%;
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   font-size: var(--text-sm);
   font-family: var(--font-mono);
-  color: var(--text);
-  background: var(--surface);
+  color: var(--on-surface);
+  background: var(--surface-low);
   resize: vertical;
   transition: border-color var(--transition-fast);
   box-sizing: border-box;

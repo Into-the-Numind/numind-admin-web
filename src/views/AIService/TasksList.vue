@@ -81,7 +81,10 @@ onMounted(fetchTasks);
 <template>
   <div class="page-container">
     <div class="page-header">
-      <h1 class="page-title">任务配置</h1>
+      <div>
+        <p class="page-breadcrumb">AI Services / Tasks</p>
+        <h1 class="page-title">任务配置</h1>
+      </div>
     </div>
 
     <!-- Error state -->
@@ -133,39 +136,20 @@ onMounted(fetchTasks);
 </template>
 
 <style scoped>
-.page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: var(--space-4);
-}
-
-.error-alert {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  background: var(--danger-light);
-  color: #991b1b;
-  border-radius: var(--radius-md);
-  margin-bottom: var(--space-4);
-  font-size: var(--text-sm);
-}
-
 .type-tag {
+  font-family: var(--font-label);
   font-size: var(--text-xs);
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.05em;
-  color: var(--text-secondary);
-  background: var(--gray-100);
+  color: var(--on-surface-variant);
+  background: var(--surface-low);
   padding: 2px var(--space-2);
   border-radius: var(--radius-sm);
 }
 
 .service-name {
   font-size: var(--text-sm);
-  color: var(--text);
+  color: var(--on-surface);
 }
 
 .action-buttons {
