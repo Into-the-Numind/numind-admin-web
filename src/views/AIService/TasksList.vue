@@ -31,7 +31,8 @@ const columns: Column[] = [
   { key: "actions", title: "操作", width: "80px" },
 ];
 
-function getCapabilityType(caps: string[]): string {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function _getCapabilityType(caps: string[]): string {
   if (!caps || caps.length === 0) return "—";
   const first = caps[0];
   if (first.includes("ocr")) return "OCR";
@@ -111,9 +112,9 @@ onMounted(fetchTasks);
         <span class="service-name">{{ getDefaultServiceName(row) }}</span>
       </template>
 
-      <template #cell-fallback_count="{ row }"> 0 </template>
+      <template #cell-fallback_count> 0 </template>
 
-      <template #cell-allowed_count="{ row }"> 0 </template>
+      <template #cell-allowed_count> 0 </template>
 
       <template #cell-actions="{ row }">
         <div class="action-buttons">
