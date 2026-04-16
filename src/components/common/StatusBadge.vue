@@ -59,7 +59,7 @@ const info = computed(
 
 .badge--info {
   background: var(--info-soft);
-  color: #1e40af;
+  color: var(--info);
 }
 
 .badge--gray {
