@@ -54,7 +54,7 @@ const { toasts } = useToast();
 
 .toast--success {
   background: var(--success-soft);
-  color: #065f46;
+  color: var(--success);
   border: 1px solid var(--success);
 }
 
@@ -66,7 +66,7 @@ const { toasts } = useToast();
 
 .toast--info {
   background: var(--info-soft);
-  color: #1e40af;
+  color: var(--info);
   border: 1px solid var(--info);
 }
 
