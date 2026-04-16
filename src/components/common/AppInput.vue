@@ -1,26 +1,42 @@
 <script setup lang="ts">
 interface Props {
-  modelValue: string;
+  modelValue: string | number | null;
   placeholder?: string;
   type?: "text" | "password" | "email" | "number" | "tel" | "url" | "date";
   disabled?: boolean;
   size?: "sm" | "md" | "lg";
+  step?: string;
   label?: string;
   error?: string;
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   placeholder: "",
   type: "text",
   disabled: false,
   size: "md",
+  step: undefined,
   label: undefined,
   error: undefined,
 });
 
-defineEmits<{
-  "update:modelValue": [value: string];
+const emit = defineEmits<{
+  "update:modelValue": [value: string | number | null];
 }>();
+
+function onInput(event: Event) {
+  const val = (event.target as HTMLInputElement).value;
+  if (props.type === "number") {
+    // If the original modelValue was null and input is empty, emit null back
+    if (val === "" && props.modelValue === null) {
+      emit("update:modelValue", null);
+    } else {
+      emit("update:modelValue", val === "" ? 0 : Number(val));
+    }
+  } else {
+    emit("update:modelValue", val);
+  }
+}
 </script>
 
 <template>
@@ -34,12 +50,11 @@ defineEmits<{
       <input
         class="app-input"
         :type="type"
-        :value="modelValue"
+        :value="modelValue ?? ''"
         :placeholder="placeholder"
         :disabled="disabled"
-        @input="
-          $emit('update:modelValue', ($event.target as HTMLInputElement).value)
-        "
+        :step="step"
+        @input="onInput"
       />
       <slot name="suffix" />
     </div>

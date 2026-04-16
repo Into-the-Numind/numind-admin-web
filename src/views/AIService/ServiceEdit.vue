@@ -415,8 +415,8 @@ onMounted(loadData);
             :model-value="form.capabilities.join(', ')"
             placeholder="如 chat, function_calling, vision"
             @update:model-value="
-              (v: string) => {
-                form.capabilities = String(v)
+              (v: string | number | null) => {
+                form.capabilities = String(v ?? '')
                   .split(',')
                   .map((s: string) => s.trim())
                   .filter(Boolean);

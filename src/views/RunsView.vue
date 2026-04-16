@@ -1,119 +1,129 @@
 <script setup lang="ts">
-import { ref, onMounted, watch, computed } from 'vue'
-import { getRunsApi, getRunDetailApi, type SopRun, type NodeRun } from '@/api/runs'
-import DataTable, { type Column } from '@/components/common/DataTable.vue'
-import AppSelect from '@/components/common/AppSelect.vue'
-import StatusBadge from '@/components/common/StatusBadge.vue'
-import { Clock, ChevronDown, ChevronUp } from 'lucide-vue-next'
-import { formatDateTime } from '@/utils/format'
-import { runStatusMap, nodeStatusMap } from '@/constants/statusMaps'
+import { ref, onMounted, watch, computed } from "vue";
+import {
+  getRunsApi,
+  getRunDetailApi,
+  type SopRun,
+  type NodeRun,
+} from "@/api/runs";
+import DataTable, { type Column } from "@/components/common/DataTable.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
+import StatusBadge from "@/components/common/StatusBadge.vue";
+import { Clock, ChevronDown, ChevronUp } from "lucide-vue-next";
+import { formatDateTime } from "@/utils/format";
+import { runStatusMap, nodeStatusMap } from "@/constants/statusMaps";
 
-const runs = ref<SopRun[]>([])
-const total = ref(0)
-const page = ref(1)
-const pageSize = 20
-const loading = ref(false)
-const statusFilter = ref('')
-const error = ref('')
+const runs = ref<SopRun[]>([]);
+const total = ref(0);
+const page = ref(1);
+const pageSize = 20;
+const loading = ref(false);
+const statusFilter = ref("");
+const error = ref("");
 
 // Detail panel
-const expandedRunId = ref<number | null>(null)
-const detailLoading = ref(false)
-const nodeRuns = ref<NodeRun[]>([])
+const expandedRunId = ref<number | null>(null);
+const detailLoading = ref(false);
+const nodeRuns = ref<NodeRun[]>([]);
 
 const columns: Column[] = [
-  { key: 'id', title: 'Run ID', width: '80px' },
-  { key: 'template_name', title: '模板', width: '160px' },
-  { key: 'user_nickname', title: '用户', width: '120px' },
-  { key: 'status', title: '状态', width: '90px' },
-  { key: 'started_at', title: '开始时间', width: '150px' },
-  { key: 'finished_at', title: '结束时间', width: '150px' },
-  { key: 'duration', title: '耗时', width: '80px', align: 'right' },
-  { key: 'total_tokens', title: 'Tokens', width: '100px', align: 'right' },
-  { key: 'cost_cents', title: '成本', width: '90px', align: 'right' },
-  { key: 'expand', title: '', width: '40px' }
-]
+  { key: "id", title: "Run ID", width: "80px" },
+  { key: "template_name", title: "模板", width: "160px" },
+  { key: "user_nickname", title: "用户", width: "120px" },
+  { key: "status", title: "状态", width: "90px" },
+  { key: "started_at", title: "开始时间", width: "150px" },
+  { key: "finished_at", title: "结束时间", width: "150px" },
+  { key: "duration", title: "耗时", width: "80px", align: "right" },
+  { key: "total_tokens", title: "Tokens", width: "100px", align: "right" },
+  { key: "cost_cents", title: "成本", width: "90px", align: "right" },
+  { key: "expand", title: "", width: "40px" },
+];
 
 const statusOptions = [
-  { label: '全部状态', value: '' },
-  { label: '等待中', value: 'pending' },
-  { label: '运行中', value: 'running' },
-  { label: '成功', value: 'succeeded' },
-  { label: '失败', value: 'failed' }
-]
+  { label: "全部状态", value: "" },
+  { label: "等待中", value: "pending" },
+  { label: "运行中", value: "running" },
+  { label: "成功", value: "succeeded" },
+  { label: "失败", value: "failed" },
+];
 
 const tableData = computed(() => {
-  return runs.value.map(run => ({
+  return runs.value.map((run) => ({
     ...run,
-    template_name: run.template?.name || '-',
-    user_nickname: run.user?.nickname || '-'
-  }))
-})
+    template_name: run.template?.name || "-",
+    user_nickname: run.user?.nickname || "-",
+  }));
+});
 
 async function fetchRuns() {
-  loading.value = true
-  error.value = ''
+  loading.value = true;
+  error.value = "";
   try {
-    const offset = (page.value - 1) * pageSize
-    const params: Record<string, unknown> = { offset, limit: pageSize }
-    if (statusFilter.value) params.status = statusFilter.value
-    const res = await getRunsApi(params as Parameters<typeof getRunsApi>[0])
-    runs.value = res.runs
-    total.value = res.total
+    const offset = (page.value - 1) * pageSize;
+    const params: Record<string, unknown> = { offset, limit: pageSize };
+    if (statusFilter.value) params.status = statusFilter.value;
+    const res = await getRunsApi(params as Parameters<typeof getRunsApi>[0]);
+    runs.value = res.runs;
+    total.value = res.total;
   } catch (e) {
-    error.value = (e as Error).message || '加载运行数据失败'
+    error.value = (e as Error).message || "加载运行数据失败";
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
 function calcDuration(run: SopRun): string {
-  if (!run.started_at || !run.finished_at) return '-'
-  const start = new Date(run.started_at).getTime()
-  const end = new Date(run.finished_at).getTime()
-  const diff = Math.round((end - start) / 1000)
-  if (diff < 60) return `${diff}s`
-  return `${Math.floor(diff / 60)}m${diff % 60}s`
+  if (!run.started_at || !run.finished_at) return "-";
+  const start = new Date(run.started_at).getTime();
+  const end = new Date(run.finished_at).getTime();
+  const diff = Math.round((end - start) / 1000);
+  if (diff < 60) return `${diff}s`;
+  return `${Math.floor(diff / 60)}m${diff % 60}s`;
 }
 
 async function toggleDetail(run: SopRun) {
   if (expandedRunId.value === run.id) {
-    expandedRunId.value = null
-    nodeRuns.value = []
-    return
+    expandedRunId.value = null;
+    nodeRuns.value = [];
+    return;
   }
-  expandedRunId.value = run.id
-  detailLoading.value = true
+  expandedRunId.value = run.id;
+  detailLoading.value = true;
   try {
-    const detail = await getRunDetailApi(run.id)
-    nodeRuns.value = detail.node_runs.sort((a, b) => a.sort - b.sort)
+    const detail = await getRunDetailApi(run.id);
+    nodeRuns.value = detail.node_runs.sort((a, b) => a.sort - b.sort);
   } catch (e) {
-    error.value = (e as Error).message || '加载详情失败'
+    error.value = (e as Error).message || "加载详情失败";
   } finally {
-    detailLoading.value = false
+    detailLoading.value = false;
   }
 }
 
 watch(statusFilter, () => {
-  page.value = 1
-  fetchRuns()
-})
+  page.value = 1;
+  fetchRuns();
+});
 
-watch(page, fetchRuns)
+watch(page, fetchRuns);
 
-onMounted(fetchRuns)
+onMounted(fetchRuns);
 </script>
 
 <template>
   <div class="page-container">
     <div class="page-header">
+      <p class="page-breadcrumb">Monitoring / Runs</p>
       <h1 class="page-title">运行监控</h1>
     </div>
 
     <div v-if="error" class="error-alert">{{ error }}</div>
 
     <div class="filters">
-      <AppSelect v-model="statusFilter" :options="statusOptions" placeholder="状态筛选" />
+      <AppSelect
+        v-model="statusFilter"
+        :options="statusOptions"
+        placeholder="状态筛选"
+      />
     </div>
 
     <DataTable
@@ -132,11 +142,15 @@ onMounted(fetchRuns)
       </template>
 
       <template #cell-started_at="{ row }">
-        <span class="text-muted">{{ formatDateTime((row as SopRun).started_at) }}</span>
+        <span class="text-muted">{{
+          formatDateTime((row as SopRun).started_at)
+        }}</span>
       </template>
 
       <template #cell-finished_at="{ row }">
-        <span class="text-muted">{{ formatDateTime((row as SopRun).finished_at) }}</span>
+        <span class="text-muted">{{
+          formatDateTime((row as SopRun).finished_at)
+        }}</span>
       </template>
 
       <template #cell-duration="{ row }">
@@ -147,11 +161,15 @@ onMounted(fetchRuns)
       </template>
 
       <template #cell-total_tokens="{ row }">
-        <span class="text-muted">{{ ((row as SopRun).total_tokens || 0).toLocaleString() }}</span>
+        <span class="text-muted">{{
+          ((row as SopRun).total_tokens || 0).toLocaleString()
+        }}</span>
       </template>
 
       <template #cell-cost_cents="{ row }">
-        <span class="text-muted">¥{{ (((row as SopRun).cost_cents || 0) / 100).toFixed(2) }}</span>
+        <span class="text-muted"
+          >¥{{ (((row as SopRun).cost_cents || 0) / 100).toFixed(2) }}</span
+        >
       </template>
 
       <template #cell-expand="{ row }">
@@ -196,7 +214,9 @@ onMounted(fetchRuns)
               </div>
               <div v-if="nr.thinking" class="node-run-section">
                 <label class="node-run-label">思考过程</label>
-                <pre class="node-run-content node-run-content--thinking">{{ nr.thinking }}</pre>
+                <pre class="node-run-content node-run-content--thinking">{{
+                  nr.thinking
+                }}</pre>
               </div>
             </div>
           </div>
@@ -241,6 +261,9 @@ onMounted(fetchRuns)
 
 .detail-panel {
   margin-top: var(--space-4);
+  background: var(--surface-low);
+  border-radius: var(--radius-sm);
+  padding: var(--space-5);
 }
 
 .detail-title {
@@ -262,7 +285,8 @@ onMounted(fetchRuns)
 }
 
 .node-run-card {
-  border: 1px solid var(--border);
+  background: var(--surface-lowest);
+  border: 1px solid rgba(169, 180, 185, 0.1);
   border-radius: var(--radius-md);
   overflow: hidden;
 }
@@ -272,8 +296,8 @@ onMounted(fetchRuns)
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
-  background: var(--gray-50);
-  border-bottom: 1px solid var(--border);
+  background: var(--surface-low);
+  border-bottom: 1px solid rgba(169, 180, 185, 0.1);
 }
 
 .node-run-sort {
@@ -301,7 +325,7 @@ onMounted(fetchRuns)
 
 .node-run-section {
   padding: var(--space-3) var(--space-4);
-  border-bottom: 1px solid var(--gray-100);
+  border-bottom: 1px solid rgba(169, 180, 185, 0.1);
 }
 
 .node-run-section:last-child {
@@ -327,7 +351,7 @@ onMounted(fetchRuns)
   line-height: 1.6;
   max-height: 200px;
   overflow-y: auto;
-  background: var(--gray-50);
+  background: var(--surface-low);
   padding: var(--space-3);
   border-radius: var(--radius-sm);
   margin: 0;
