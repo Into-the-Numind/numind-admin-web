@@ -1,19 +1,19 @@
 <script setup lang="ts">
 interface Props {
-  variant?: 'primary' | 'secondary' | 'danger' | 'ghost'
-  size?: 'sm' | 'md' | 'lg'
-  loading?: boolean
-  disabled?: boolean
-  block?: boolean
+  variant?: "primary" | "secondary" | "danger" | "ghost";
+  size?: "sm" | "md" | "lg";
+  loading?: boolean;
+  disabled?: boolean;
+  block?: boolean;
 }
 
 withDefaults(defineProps<Props>(), {
-  variant: 'primary',
-  size: 'md',
+  variant: "primary",
+  size: "md",
   loading: false,
   disabled: false,
-  block: false
-})
+  block: false,
+});
 </script>
 
 <template>
@@ -22,7 +22,7 @@ withDefaults(defineProps<Props>(), {
     :class="[
       `app-btn--${variant}`,
       `app-btn--${size}`,
-      { 'app-btn--block': block, 'app-btn--loading': loading }
+      { 'app-btn--block': block, 'app-btn--loading': loading },
     ]"
     :disabled="disabled || loading"
   >
@@ -37,8 +37,12 @@ withDefaults(defineProps<Props>(), {
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  font-weight: 500;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-label);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
   transition: all var(--transition-fast);
   white-space: nowrap;
   cursor: pointer;
@@ -52,55 +56,51 @@ withDefaults(defineProps<Props>(), {
 
 .app-btn--sm {
   padding: var(--space-1) var(--space-3);
-  font-size: var(--text-xs);
   height: 32px;
 }
 
 .app-btn--md {
   padding: var(--space-2) var(--space-4);
-  font-size: var(--text-sm);
   height: 38px;
 }
 
 .app-btn--lg {
   padding: var(--space-3) var(--space-6);
-  font-size: var(--text-base);
   height: 44px;
 }
 
 .app-btn--primary {
   background: var(--primary);
-  color: #fff;
+  color: var(--on-primary);
 }
 .app-btn--primary:hover:not(:disabled) {
   background: var(--primary-hover);
 }
 
 .app-btn--secondary {
-  background: var(--surface);
-  color: var(--text);
-  border-color: var(--border);
+  background: var(--surface-high);
+  color: var(--on-surface);
+  border: 1px solid rgba(169, 180, 185, 0.2);
 }
 .app-btn--secondary:hover:not(:disabled) {
-  background: var(--gray-50);
-  border-color: var(--gray-300);
+  background: var(--surface-highest);
 }
 
 .app-btn--danger {
   background: var(--danger);
-  color: #fff;
+  color: white;
 }
 .app-btn--danger:hover:not(:disabled) {
-  background: #DC2626;
+  background: var(--danger);
+  filter: brightness(0.9);
 }
 
 .app-btn--ghost {
   background: transparent;
-  color: var(--text-secondary);
+  color: var(--on-surface-variant);
 }
 .app-btn--ghost:hover:not(:disabled) {
-  background: var(--gray-100);
-  color: var(--text);
+  background: var(--surface-low);
 }
 
 .app-btn--block {
@@ -116,18 +116,29 @@ withDefaults(defineProps<Props>(), {
   width: 16px;
   height: 16px;
   border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: #fff;
+  border-top-color: var(--on-primary);
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
 }
 
-.app-btn--secondary .spinner,
+.app-btn--secondary .spinner {
+  border-color: rgba(169, 180, 185, 0.3);
+  border-top-color: var(--tertiary);
+}
+
+.app-btn--danger .spinner {
+  border-color: rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+}
+
 .app-btn--ghost .spinner {
-  border-color: var(--gray-300);
-  border-top-color: var(--primary);
+  border-color: rgba(169, 180, 185, 0.3);
+  border-top-color: var(--tertiary);
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>

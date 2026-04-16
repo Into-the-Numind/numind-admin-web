@@ -1,32 +1,33 @@
 <script setup lang="ts">
 export interface SelectOption {
-  label: string
-  value: string | number
+  label: string;
+  value: string | number;
 }
 
 interface Props {
-  modelValue: string | number
-  options: SelectOption[]
-  placeholder?: string
-  disabled?: boolean
-  size?: 'sm' | 'md' | 'lg'
+  modelValue: string | number;
+  options: SelectOption[];
+  placeholder?: string;
+  disabled?: boolean;
+  size?: "sm" | "md" | "lg";
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  placeholder: '请选择',
+  placeholder: "请选择",
   disabled: false,
-  size: 'md'
-})
+  size: "md",
+});
 
 const emit = defineEmits<{
-  'update:modelValue': [value: string | number]
-}>()
+  "update:modelValue": [value: string | number];
+}>();
 
 function handleChange(event: Event) {
-  const strValue = (event.target as HTMLSelectElement).value
-  const option = props.options.find(o => String(o.value) === strValue)
-  const value = option && typeof option.value === 'number' ? Number(strValue) : strValue
-  emit('update:modelValue', value)
+  const strValue = (event.target as HTMLSelectElement).value;
+  const option = props.options.find((o) => String(o.value) === strValue);
+  const value =
+    option && typeof option.value === "number" ? Number(strValue) : strValue;
+  emit("update:modelValue", value);
 }
 </script>
 
@@ -55,27 +56,27 @@ function handleChange(event: Event) {
 .app-select {
   appearance: none;
   width: 100%;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  color: var(--text);
+  background: var(--surface-low);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  color: var(--on-surface);
   cursor: pointer;
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  transition: box-shadow var(--transition-fast);
   padding-right: var(--space-8);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%236B7280' viewBox='0 0 24 24'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23566166' viewBox='0 0 24 24'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 8px center;
 }
 
 .app-select:focus {
   outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px var(--primary-light);
+  box-shadow: 0 0 0 1px var(--tertiary);
 }
 
 .app-select:disabled {
-  background: var(--gray-50);
-  color: var(--gray-400);
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
