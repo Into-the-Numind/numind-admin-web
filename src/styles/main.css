@@ -239,7 +239,7 @@ table {
 
 .modal-enter-active,
 .modal-leave-active {
-  transition: opacity 200ms ease;
+  transition: opacity var(--transition-base);
 }
 .modal-enter-from,
 .modal-leave-to {
@@ -346,7 +346,7 @@ table {
 
 .filter-count {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-xs);
   color: var(--on-surface-variant);
   background: var(--surface-low);
   padding: var(--space-1) var(--space-3);
