@@ -19,6 +19,9 @@ import {
   ShoppingCart,
   Cpu,
   Bot,
+  Layers,
+  ListChecks,
+  ScrollText,
 } from "lucide-vue-next";
 
 const props = defineProps<{ collapsed: boolean }>();
@@ -89,6 +92,24 @@ const navItems = [
     label: "LLM 模型",
     icon: Bot,
     path: "/llm-models",
+  },
+  {
+    name: "AIServices",
+    label: "AI 服务",
+    icon: Layers,
+    path: "/ai-services",
+  },
+  {
+    name: "AITasks",
+    label: "任务配置",
+    icon: ListChecks,
+    path: "/ai-tasks",
+  },
+  {
+    name: "AIAuditLogs",
+    label: "AI 审计日志",
+    icon: ScrollText,
+    path: "/ai-audit-logs",
   },
 ];
 
