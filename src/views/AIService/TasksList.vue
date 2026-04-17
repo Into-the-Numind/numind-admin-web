@@ -31,20 +31,11 @@ const columns: Column[] = [
   { key: "actions", title: "操作", width: "80px" },
 ];
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function _getCapabilityType(caps: string[]): string {
-  if (!caps || caps.length === 0) return "—";
-  const first = caps[0];
-  if (first.includes("ocr")) return "OCR";
-  if (first.includes("asr")) return "ASR";
-  return "LLM";
-}
-
 function getDefaultServiceName(task: TaskProfile): string {
   const id = task.default_service_id;
   if (!id) return "—";
   const svc = serviceMap.value[id];
-  return svc ? svc.display_name || svc.name : String(id);
+  return svc ? svc.display_name || svc.model_key : String(id);
 }
 
 async function fetchTasks() {
@@ -107,7 +98,7 @@ onMounted(fetchTasks);
     >
       <template #cell-service_type="{ row }">
         <span class="type-tag">
-          {{ (row as any).service_type?.toUpperCase() || "—" }}
+          {{ (row as TaskProfile).service_type?.toUpperCase() || "—" }}
         </span>
       </template>
 

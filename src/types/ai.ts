@@ -1,62 +1,88 @@
 // ====== Capability Schema ======
+//
+// Backend `profile.CapabilitySchema` / `profile.CapabilityField` have no JSON
+// tags, so the wire format is Go's default PascalCase. Mirror that here.
+
+export type CapabilityFieldType =
+  | "modalities"
+  | "string_list"
+  | "int"
+  | "bool"
+  | "feature_map";
 
 export interface CapabilityField {
-  key: string;
-  label: string;
-  type: "string" | "number" | "boolean" | "select";
-  required?: boolean;
-  options?: string[];
-  description?: string;
+  Name: string;
+  Type: CapabilityFieldType;
+  Required: boolean;
+  EnumValues?: string[];
+  Description: string;
 }
 
-export interface CapabilityDefinition {
-  name: string;
-  label: string;
-  required_fields: CapabilityField[];
-  optional_fields?: CapabilityField[];
+export interface CapabilitySchema {
+  ServiceType: string;
+  Fields: CapabilityField[];
 }
 
-export type CapabilitySchema = Record<string, CapabilityDefinition>;
+export type CapabilitySchemaMap = Record<string, CapabilitySchema>;
 
 // ====== AI Service ======
 
 export interface AIServiceRoute {
-  environment: string;
-  endpoint: string;
-  api_key_masked?: string;
-  extra_params?: Record<string, unknown>;
+  id: number;
+  provider_id: number;
+  provider_name: string;
+  provider_model_id: string;
+  priority: number;
+  pricing_unit: string;
+  input_price_per_mtok: number;
+  output_price_per_mtok: number;
+  price_per_call?: number;
+  price_per_second?: number;
+  is_active: boolean;
 }
 
 export interface AIService {
   id: number;
-  name: string;
+  model_key: string;
   display_name: string;
   service_type: string;
-  provider: string;
-  model_id: string;
-  capabilities: string[];
-  routes: AIServiceRoute[];
+  capability_json?: Record<string, unknown>;
+  latency_tier: string;
+  quality_tier: string;
+  tags?: string[];
+  deprecated_at?: string | null;
+  is_thinking: boolean;
+  base_model_id?: number | null;
+  supports_thinking: boolean;
+  thinking_only: boolean;
+  icon: string;
+  sort_order: number;
   is_active: boolean;
-  is_deleted: boolean;
-  meta?: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }
 
-export interface CreateServiceRequest {
-  name: string;
-  display_name: string;
-  service_type: string;
-  provider: string;
-  model_id: string;
-  capabilities: string[];
+export interface AIServiceDetail extends AIService {
   routes: AIServiceRoute[];
-  meta?: Record<string, unknown>;
 }
 
-export type UpdateServiceRequest = Partial<CreateServiceRequest> & {
+export interface CreateServiceRequest {
+  model_key: string;
+  display_name: string;
+  service_type: string;
+  capability_json?: Record<string, unknown>;
+  latency_tier?: string;
+  quality_tier?: string;
+  tags?: string[];
+  is_thinking?: boolean;
+  supports_thinking?: boolean;
+  thinking_only?: boolean;
+  icon?: string;
+  sort_order?: number;
   is_active?: boolean;
-};
+}
+
+export type UpdateServiceRequest = Partial<CreateServiceRequest>;
 
 // ====== Task Profile ======
 

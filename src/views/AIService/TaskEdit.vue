@@ -50,7 +50,7 @@ const incompatibleBindings = ref<string[]>([]);
 const serviceSelectOptions = computed(() => [
   { label: "（无）", value: "" },
   ...services.value.map((svc) => ({
-    label: svc.display_name || svc.name,
+    label: svc.display_name || svc.model_key,
     value: String(svc.id),
   })),
 ]);
@@ -354,7 +354,9 @@ onMounted(loadData);
                   @change="toggleAllowed(svc.id)"
                 />
                 <GripVertical :size="12" class="grip-icon" />
-                <span class="svc-name">{{ svc.display_name || svc.name }}</span>
+                <span class="svc-name">{{
+                  svc.display_name || svc.model_key
+                }}</span>
                 <span class="svc-type">{{
                   svc.service_type.toUpperCase()
                 }}</span>

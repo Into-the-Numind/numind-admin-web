@@ -7,12 +7,19 @@ import {
   updateServiceApi,
   getCapabilitySchemaApi,
 } from "@/api/ai";
-import type { AIService, AIServiceRoute, CapabilitySchema } from "@/types/ai";
+import type {
+  AIServiceDetail,
+  AIServiceRoute,
+  CapabilityField,
+  CapabilitySchemaMap,
+  CreateServiceRequest,
+  UpdateServiceRequest,
+} from "@/types/ai";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import { useToast } from "@/composables/useToast";
-import { ArrowLeft, Plus, Trash2 } from "lucide-vue-next";
+import { ArrowLeft } from "lucide-vue-next";
 
 const router = useRouter();
 const route = useRoute();
@@ -24,177 +31,185 @@ const serviceId = computed(() => (isNew.value ? 0 : Number(route.params.id)));
 const loading = ref(false);
 const saving = ref(false);
 const error = ref("");
-const capabilitySchema = ref<CapabilitySchema>({});
-
-// ====== Form ======
-
-interface RouteForm {
-  environment: string;
-  endpoint: string;
-  api_key: string;
-  extra_params_str: string;
-}
 
 interface ServiceForm {
-  name: string;
+  model_key: string;
   display_name: string;
   service_type: string;
-  provider: string;
-  model_id: string;
-  capabilities: string[];
-  routes: RouteForm[];
+  capability_json: Record<string, unknown>;
+  latency_tier: string;
+  quality_tier: string;
+  tags_input: string;
+  is_thinking: boolean;
+  supports_thinking: boolean;
+  thinking_only: boolean;
+  icon: string;
+  sort_order: number;
   is_active: boolean;
-  meta: Record<string, unknown>;
 }
 
 const form = ref<ServiceForm>({
-  name: "",
+  model_key: "",
   display_name: "",
   service_type: "llm",
-  provider: "",
-  model_id: "",
-  capabilities: [],
-  routes: [
-    {
-      environment: "prod",
-      endpoint: "",
-      api_key: "",
-      extra_params_str: "",
-    },
-  ],
+  capability_json: {},
+  latency_tier: "standard",
+  quality_tier: "standard",
+  tags_input: "",
+  is_thinking: false,
+  supports_thinking: false,
+  thinking_only: false,
+  icon: "",
+  sort_order: 0,
   is_active: true,
-  meta: {},
 });
 
-// Validation errors (blur-triggered)
 const fieldErrors = ref<Record<string, string>>({});
 
-// ====== Options ======
+const capabilitySchemaMap = ref<CapabilitySchemaMap>({});
+const currentFields = computed<CapabilityField[]>(
+  () => capabilitySchemaMap.value[form.value.service_type]?.Fields ?? [],
+);
+
+const routes = ref<AIServiceRoute[]>([]);
 
 const serviceTypeOptions = [
-  { label: "LLM (大语言模型)", value: "llm" },
-  { label: "OCR (光学识别)", value: "ocr" },
-  { label: "ASR (语音识别)", value: "asr" },
+  { label: "LLM", value: "llm" },
+  { label: "OCR", value: "ocr" },
+  { label: "ASR", value: "asr" },
 ];
 
-const environmentOptions = [
-  { label: "生产 (prod)", value: "prod" },
-  { label: "开发 (dev)", value: "dev" },
-  { label: "测试 (qa)", value: "qa" },
+const tierOptions = [
+  { label: "fast", value: "fast" },
+  { label: "standard", value: "standard" },
+  { label: "high", value: "high" },
 ];
 
-// ====== Capability fields based on service_type ======
+function getCapValue(name: string): unknown {
+  return form.value.capability_json[name];
+}
 
-const currentCapabilityFields = computed(() => {
-  const schema = capabilitySchema.value;
-  if (!schema || Object.keys(schema).length === 0) return [];
-  const relevant = Object.entries(schema).filter(([, def]) => {
-    // Show fields relevant to current service_type
-    const name = def.name ?? "";
-    const type = form.value.service_type;
-    if (type === "llm") return true;
-    if (type === "ocr") return name.toLowerCase().includes("ocr");
-    if (type === "asr") return name.toLowerCase().includes("asr");
-    return true;
-  });
-  return relevant.map(([key, def]) => ({ key, ...def }));
-});
+function setCapValue(name: string, value: unknown) {
+  form.value.capability_json = {
+    ...form.value.capability_json,
+    [name]: value,
+  };
+}
 
-function toggleCapability(cap: string) {
-  const idx = form.value.capabilities.indexOf(cap);
-  if (idx === -1) {
-    form.value.capabilities.push(cap);
+function toggleEnumMember(field: CapabilityField, enumValue: string) {
+  const cur = (getCapValue(field.Name) as string[] | undefined) ?? [];
+  const enumSet = new Set(field.EnumValues ?? []);
+  // Preserve values that are not in EnumValues so schema evolution (or a stored
+  // value the UI doesn't render as a checkbox) doesn't get silently dropped.
+  const extras = cur.filter((v) => typeof v === "string" && !enumSet.has(v));
+  const enumMembers = cur.filter(
+    (v) => typeof v === "string" && enumSet.has(v),
+  );
+  const nextEnum = enumMembers.includes(enumValue)
+    ? enumMembers.filter((v) => v !== enumValue)
+    : [...enumMembers, enumValue];
+  setCapValue(field.Name, [...nextEnum, ...extras]);
+}
+
+function isEnumMember(fieldName: string, enumValue: string): boolean {
+  const cur = getCapValue(fieldName);
+  return Array.isArray(cur) && cur.includes(enumValue);
+}
+
+function unknownEnumValues(field: CapabilityField): string[] {
+  const cur = getCapValue(field.Name);
+  if (!Array.isArray(cur)) return [];
+  const enumSet = new Set(field.EnumValues ?? []);
+  return cur.filter(
+    (v): v is string => typeof v === "string" && !enumSet.has(v),
+  );
+}
+
+function capListText(fieldName: string): string {
+  const v = getCapValue(fieldName);
+  return Array.isArray(v) ? v.join(", ") : "";
+}
+
+function setCapListFromText(fieldName: string, text: string) {
+  const arr = text
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  setCapValue(fieldName, arr);
+}
+
+function capIntValue(fieldName: string): string {
+  const v = getCapValue(fieldName);
+  return typeof v === "number" ? String(v) : "";
+}
+
+function setCapInt(fieldName: string, text: string) {
+  const n = text === "" ? undefined : Number(text);
+  if (n === undefined || Number.isNaN(n)) {
+    const next = { ...form.value.capability_json };
+    delete next[fieldName];
+    form.value.capability_json = next;
   } else {
-    form.value.capabilities.splice(idx, 1);
+    setCapValue(fieldName, n);
   }
 }
 
-// ====== Dynamic meta fields for pricing ======
-
-const metaInputPrice = computed({
-  get: () => String(form.value.meta.input_price_per_mtok ?? ""),
-  set: (v: string) => {
-    form.value.meta = {
-      ...form.value.meta,
-      input_price_per_mtok: v ? Number(v) : undefined,
-    };
-  },
-});
-
-const metaOutputPrice = computed({
-  get: () => String(form.value.meta.output_price_per_mtok ?? ""),
-  set: (v: string) => {
-    form.value.meta = {
-      ...form.value.meta,
-      output_price_per_mtok: v ? Number(v) : undefined,
-    };
-  },
-});
-
-// ====== Routes helpers ======
-
-function addRoute() {
-  form.value.routes.push({
-    environment: "dev",
-    endpoint: "",
-    api_key: "",
-    extra_params_str: "",
-  });
+function capBoolValue(fieldName: string): boolean {
+  return getCapValue(fieldName) === true;
 }
 
-function removeRoute(idx: number) {
-  form.value.routes.splice(idx, 1);
+function featureMapText(fieldName: string): string {
+  const v = getCapValue(fieldName);
+  return v ? JSON.stringify(v, null, 2) : "{}";
 }
 
-// ====== Validation ======
+function setFeatureMapFromText(fieldName: string, text: string) {
+  try {
+    const parsed = JSON.parse(text || "{}");
+    if (parsed && typeof parsed === "object") {
+      setCapValue(fieldName, parsed);
+      fieldErrors.value[`cap.${fieldName}`] = "";
+    }
+  } catch {
+    fieldErrors.value[`cap.${fieldName}`] = "JSON 格式错误";
+  }
+}
 
 function validateField(field: string) {
   const v = form.value;
-  if (field === "name") {
-    fieldErrors.value.name = v.name.trim() ? "" : "标识不能为空";
+  if (field === "model_key") {
+    fieldErrors.value.model_key = v.model_key.trim() ? "" : "标识不能为空";
   }
   if (field === "display_name") {
     fieldErrors.value.display_name = v.display_name.trim()
       ? ""
       : "显示名称不能为空";
   }
-  if (field === "provider") {
-    fieldErrors.value.provider = v.provider.trim() ? "" : "供应商不能为空";
-  }
-  if (field === "model_id") {
-    fieldErrors.value.model_id = v.model_id.trim() ? "" : "模型 ID 不能为空";
-  }
 }
 
 function validateAll(): boolean {
-  validateField("name");
+  validateField("model_key");
   validateField("display_name");
-  validateField("provider");
-  validateField("model_id");
   return !Object.values(fieldErrors.value).some(Boolean);
 }
 
-// ====== Load ======
-
-function applyService(s: AIService) {
+function applyService(s: AIServiceDetail) {
   form.value = {
-    name: s.name,
+    model_key: s.model_key,
     display_name: s.display_name,
     service_type: s.service_type,
-    provider: s.provider,
-    model_id: s.model_id,
-    capabilities: [...(s.capabilities ?? [])],
-    routes: (s.routes ?? []).map((r: AIServiceRoute) => ({
-      environment: r.environment,
-      endpoint: r.endpoint,
-      api_key: "",
-      extra_params_str: r.extra_params
-        ? JSON.stringify(r.extra_params, null, 2)
-        : "",
-    })),
+    capability_json: { ...(s.capability_json ?? {}) },
+    latency_tier: s.latency_tier || "standard",
+    quality_tier: s.quality_tier || "standard",
+    tags_input: (s.tags ?? []).join(", "),
+    is_thinking: s.is_thinking,
+    supports_thinking: s.supports_thinking,
+    thinking_only: s.thinking_only,
+    icon: s.icon || "",
+    sort_order: s.sort_order ?? 0,
     is_active: s.is_active,
-    meta: { ...(s.meta ?? {}) },
   };
+  routes.value = s.routes ?? [];
 }
 
 async function loadData() {
@@ -202,7 +217,7 @@ async function loadData() {
   error.value = "";
   try {
     const [schemaRes] = await Promise.all([getCapabilitySchemaApi()]);
-    capabilitySchema.value = schemaRes ?? {};
+    capabilitySchemaMap.value = schemaRes ?? {};
 
     if (!isNew.value) {
       const svc = await getServiceApi(serviceId.value);
@@ -215,57 +230,47 @@ async function loadData() {
   }
 }
 
-// ====== Save ======
+function buildPayloadBase() {
+  const tags = form.value.tags_input
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return {
+    model_key: form.value.model_key,
+    display_name: form.value.display_name,
+    service_type: form.value.service_type,
+    capability_json: form.value.capability_json,
+    latency_tier: form.value.latency_tier,
+    quality_tier: form.value.quality_tier,
+    tags,
+    is_thinking: form.value.is_thinking,
+    supports_thinking: form.value.supports_thinking,
+    thinking_only: form.value.thinking_only,
+    icon: form.value.icon,
+    sort_order: form.value.sort_order,
+    is_active: form.value.is_active,
+  };
+}
 
 async function save() {
   if (!validateAll()) {
     toast.error("请检查必填项");
     return;
   }
+  if (Object.entries(fieldErrors.value).some(([, v]) => v)) {
+    toast.error("请修正表单错误后再保存");
+    return;
+  }
   if (saving.value) return;
   saving.value = true;
   try {
-    const routes: AIServiceRoute[] = form.value.routes
-      .filter((r) => r.endpoint.trim())
-      .map((r) => {
-        let extra: Record<string, unknown> | undefined;
-        if (r.extra_params_str.trim()) {
-          try {
-            extra = JSON.parse(r.extra_params_str);
-          } catch {
-            // ignore malformed JSON
-          }
-        }
-        const route: AIServiceRoute = {
-          environment: r.environment,
-          endpoint: r.endpoint,
-          extra_params: extra,
-        };
-        if (r.api_key.trim()) {
-          (route as AIServiceRoute & { api_key?: string }).api_key = r.api_key;
-        }
-        return route;
-      });
-
-    const payload = {
-      name: form.value.name,
-      display_name: form.value.display_name,
-      service_type: form.value.service_type,
-      provider: form.value.provider,
-      model_id: form.value.model_id,
-      capabilities: form.value.capabilities,
-      routes,
-      meta: form.value.meta,
-    };
-
     if (isNew.value) {
+      const payload: CreateServiceRequest = buildPayloadBase();
       await createServiceApi(payload);
       toast.success("服务已创建");
     } else {
-      await updateServiceApi(serviceId.value, {
-        ...payload,
-        is_active: form.value.is_active,
-      });
+      const payload: UpdateServiceRequest = buildPayloadBase();
+      await updateServiceApi(serviceId.value, payload);
       toast.success("服务已更新");
     }
     router.push("/ai-services");
@@ -283,30 +288,25 @@ onMounted(loadData);
 <template>
   <div class="page-container">
     <div class="page-header">
-      <p class="page-breadcrumb">AI Services / {{ isNew ? "New" : "Edit" }}</p>
-      <div class="page-header__row">
-        <div class="page-header__left">
-          <AppButton
-            variant="ghost"
-            size="sm"
-            @click="router.push('/ai-services')"
-          >
-            <ArrowLeft :size="16" />
-          </AppButton>
-          <h1 class="page-title">
-            {{ isNew ? "新建 AI 服务" : "编辑 AI 服务" }}
-          </h1>
-        </div>
-        <AppButton variant="primary" :loading="saving" @click="save">
-          {{ isNew ? "创建" : "保存" }}
+      <div class="page-header__left">
+        <AppButton
+          variant="ghost"
+          size="sm"
+          @click="router.push('/ai-services')"
+        >
+          <ArrowLeft :size="16" />
         </AppButton>
+        <h1 class="page-title">
+          {{ isNew ? "新建 AI 服务" : "编辑 AI 服务" }}
+        </h1>
       </div>
+      <AppButton variant="primary" :loading="saving" @click="save">
+        {{ isNew ? "创建" : "保存" }}
+      </AppButton>
     </div>
 
-    <!-- Loading skeleton -->
     <div v-if="loading" class="skeleton-block" />
 
-    <!-- Error state -->
     <div v-else-if="error" class="error-alert">
       <span>{{ error }}</span>
       <AppButton size="sm" variant="secondary" @click="loadData"
@@ -314,22 +314,21 @@ onMounted(loadData);
       >
     </div>
 
-    <!-- Form -->
     <template v-else>
       <!-- Basic Info -->
       <section class="form-section">
         <h2 class="section-title">基本信息</h2>
         <div class="form-grid">
           <div class="form-group">
-            <label class="form-label">标识 (name) *</label>
+            <label class="form-label">标识 (model_key) *</label>
             <AppInput
-              v-model="form.name"
+              v-model="form.model_key"
               placeholder="如 ali-qwen-turbo"
               :disabled="!isNew"
-              @blur="validateField('name')"
+              @blur="validateField('model_key')"
             />
-            <p v-if="fieldErrors.name" class="field-error">
-              {{ fieldErrors.name }}
+            <p v-if="fieldErrors.model_key" class="field-error">
+              {{ fieldErrors.model_key }}
             </p>
           </div>
 
@@ -350,34 +349,11 @@ onMounted(loadData);
             <AppSelect
               v-model="form.service_type"
               :options="serviceTypeOptions"
+              :disabled="!isNew"
             />
           </div>
 
           <div class="form-group">
-            <label class="form-label">供应商 *</label>
-            <AppInput
-              v-model="form.provider"
-              placeholder="如 ali、volc、baidu"
-              @blur="validateField('provider')"
-            />
-            <p v-if="fieldErrors.provider" class="field-error">
-              {{ fieldErrors.provider }}
-            </p>
-          </div>
-
-          <div class="form-group form-group--full">
-            <label class="form-label">模型 ID *</label>
-            <AppInput
-              v-model="form.model_id"
-              placeholder="如 qwen-turbo"
-              @blur="validateField('model_id')"
-            />
-            <p v-if="fieldErrors.model_id" class="field-error">
-              {{ fieldErrors.model_id }}
-            </p>
-          </div>
-
-          <div v-if="!isNew" class="form-group form-group--full">
             <label class="form-label checkbox-label">
               <input
                 v-model="form.is_active"
@@ -390,129 +366,224 @@ onMounted(loadData);
         </div>
       </section>
 
-      <!-- Capabilities -->
+      <!-- Capability JSON -->
       <section class="form-section">
-        <h2 class="section-title">能力标签</h2>
-        <p class="section-desc">选择此服务具备的能力，用于任务匹配。</p>
-        <div v-if="currentCapabilityFields.length > 0" class="capability-grid">
-          <label
-            v-for="cap in currentCapabilityFields"
-            :key="cap.key"
-            class="capability-item"
-            :class="{
-              'capability-item--active': form.capabilities.includes(cap.key),
-            }"
-          >
-            <input
-              type="checkbox"
-              :checked="form.capabilities.includes(cap.key)"
-              @change="toggleCapability(cap.key)"
-            />
-            <span class="cap-key">{{ cap.key }}</span>
-            <span class="cap-label">{{ cap.label }}</span>
-          </label>
+        <h2 class="section-title">能力配置</h2>
+        <p class="section-desc">
+          根据服务类型 {{ form.service_type.toUpperCase() }} 的 schema
+          填写能力描述。
+        </p>
+        <div v-if="currentFields.length === 0" class="empty-hint">
+          未找到 {{ form.service_type }} 的 schema 定义
         </div>
-        <div v-else class="capability-manual">
-          <label class="form-label">能力列表（逗号分隔）</label>
-          <AppInput
-            :model-value="form.capabilities.join(', ')"
-            placeholder="如 chat, function_calling, vision"
-            @update:model-value="
-              (v: string | number | null) => {
-                form.capabilities = String(v ?? '')
-                  .split(',')
-                  .map((s: string) => s.trim())
-                  .filter(Boolean);
-              }
-            "
-          />
+        <div v-else class="cap-fields">
+          <div
+            v-for="field in currentFields"
+            :key="field.Name"
+            class="form-group form-group--full"
+          >
+            <label class="form-label">
+              <span class="cap-key">{{ field.Name }}</span>
+              <span v-if="field.Required" class="cap-required">*</span>
+            </label>
+            <p class="cap-desc">{{ field.Description }}</p>
+
+            <div
+              v-if="
+                (field.Type === 'modalities' || field.Type === 'string_list') &&
+                field.EnumValues &&
+                field.EnumValues.length > 0
+              "
+              class="enum-grid"
+            >
+              <label
+                v-for="ev in field.EnumValues"
+                :key="ev"
+                class="enum-item"
+                :class="{ 'enum-item--active': isEnumMember(field.Name, ev) }"
+              >
+                <input
+                  type="checkbox"
+                  :checked="isEnumMember(field.Name, ev)"
+                  @change="toggleEnumMember(field, ev)"
+                />
+                <span>{{ ev }}</span>
+              </label>
+              <span
+                v-for="extra in unknownEnumValues(field)"
+                :key="extra"
+                class="enum-extra"
+                title="schema 未识别的值；会被保留但不可在此取消勾选"
+              >
+                {{ extra }}
+              </span>
+            </div>
+
+            <AppInput
+              v-else-if="field.Type === 'string_list'"
+              :model-value="capListText(field.Name)"
+              placeholder="逗号分隔，如 zh, en"
+              @update:model-value="
+                (v: string | number | null) =>
+                  setCapListFromText(field.Name, String(v ?? ''))
+              "
+            />
+
+            <AppInput
+              v-else-if="field.Type === 'int'"
+              :model-value="capIntValue(field.Name)"
+              type="number"
+              placeholder="0"
+              @update:model-value="
+                (v: string | number | null) =>
+                  setCapInt(field.Name, v == null ? '' : String(v))
+              "
+            />
+
+            <label v-else-if="field.Type === 'bool'" class="checkbox-label">
+              <input
+                type="checkbox"
+                class="checkbox"
+                :checked="capBoolValue(field.Name)"
+                @change="
+                  setCapValue(
+                    field.Name,
+                    ($event.target as HTMLInputElement).checked,
+                  )
+                "
+              />
+              {{ field.Description }}
+            </label>
+
+            <template v-else-if="field.Type === 'feature_map'">
+              <textarea
+                class="json-textarea"
+                :value="featureMapText(field.Name)"
+                rows="4"
+                @change="
+                  setFeatureMapFromText(
+                    field.Name,
+                    ($event.target as HTMLTextAreaElement).value,
+                  )
+                "
+              />
+              <p v-if="fieldErrors[`cap.${field.Name}`]" class="field-error">
+                {{ fieldErrors[`cap.${field.Name}`] }}
+              </p>
+            </template>
+
+            <AppInput
+              v-else
+              :model-value="String(getCapValue(field.Name) ?? '')"
+              @update:model-value="
+                (v: string | number | null) =>
+                  setCapValue(field.Name, String(v ?? ''))
+              "
+            />
+          </div>
         </div>
       </section>
 
-      <!-- Pricing -->
+      <!-- Tiers, tags, display -->
       <section class="form-section">
-        <h2 class="section-title">计费信息</h2>
+        <h2 class="section-title">档位与属性</h2>
         <div class="form-grid">
           <div class="form-group">
-            <label class="form-label">输入价格 (¥/Mtok)</label>
-            <AppInput
-              v-model="metaInputPrice"
-              type="number"
-              placeholder="0.00"
-            />
+            <label class="form-label">延迟档位</label>
+            <AppSelect v-model="form.latency_tier" :options="tierOptions" />
           </div>
           <div class="form-group">
-            <label class="form-label">输出价格 (¥/Mtok)</label>
+            <label class="form-label">质量档位</label>
+            <AppSelect v-model="form.quality_tier" :options="tierOptions" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">图标 (icon key)</label>
+            <AppInput v-model="form.icon" placeholder="如 qwen, doubao" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">排序权重</label>
             <AppInput
-              v-model="metaOutputPrice"
+              :model-value="form.sort_order"
               type="number"
-              placeholder="0.00"
+              placeholder="0"
+              @update:model-value="
+                (v: string | number | null) => {
+                  form.sort_order = typeof v === 'number' ? v : Number(v ?? 0);
+                }
+              "
+            />
+          </div>
+          <div class="form-group form-group--full">
+            <label class="form-label">标签 (tags)</label>
+            <AppInput
+              v-model="form.tags_input"
+              placeholder="逗号分隔，如 推荐, vision"
             />
           </div>
         </div>
       </section>
 
-      <!-- Routes -->
+      <!-- Thinking flags -->
       <section class="form-section">
-        <div class="section-header">
-          <h2 class="section-title">路由配置</h2>
-          <AppButton size="sm" variant="secondary" @click="addRoute">
-            <Plus :size="14" />
-            添加路由
-          </AppButton>
+        <h2 class="section-title">Thinking 配置</h2>
+        <div class="form-grid">
+          <label class="form-label checkbox-label">
+            <input
+              v-model="form.is_thinking"
+              type="checkbox"
+              class="checkbox"
+            />
+            is_thinking（当前记录代表一个 thinking 变体）
+          </label>
+          <label class="form-label checkbox-label">
+            <input
+              v-model="form.supports_thinking"
+              type="checkbox"
+              class="checkbox"
+            />
+            supports_thinking（支持开启 thinking 模式）
+          </label>
+          <label class="form-label checkbox-label">
+            <input
+              v-model="form.thinking_only"
+              type="checkbox"
+              class="checkbox"
+            />
+            thinking_only（仅 thinking 模式可用）
+          </label>
         </div>
+      </section>
 
-        <div
-          v-for="(routeItem, idx) in form.routes"
-          :key="idx"
-          class="route-card"
-        >
-          <div class="route-card__header">
-            <span class="route-index">路由 #{{ idx + 1 }}</span>
-            <AppButton
-              v-if="form.routes.length > 1"
-              size="sm"
-              variant="ghost"
-              @click="removeRoute(idx)"
+      <!-- Routes (read-only) -->
+      <section v-if="!isNew" class="form-section">
+        <h2 class="section-title">路由配置（只读）</h2>
+        <p class="section-desc">
+          路由（provider / 定价）请在「LLM 供应商」页面维护。
+        </p>
+        <div v-if="routes.length === 0" class="empty-hint">暂无路由</div>
+        <div v-else class="routes-list">
+          <div v-for="r in routes" :key="r.id" class="route-row">
+            <span class="route-provider">{{ r.provider_name }}</span>
+            <span class="route-model">{{ r.provider_model_id }}</span>
+            <span class="route-priority">优先级 {{ r.priority }}</span>
+            <span class="route-pricing">
+              <template v-if="r.pricing_unit === 'per_call'">
+                ¥{{ r.price_per_call ?? 0 }} / 次
+              </template>
+              <template v-else-if="r.pricing_unit === 'per_second'">
+                ¥{{ r.price_per_second ?? 0 }} / 秒
+              </template>
+              <template v-else>
+                ¥{{ r.input_price_per_mtok }} /
+                {{ r.output_price_per_mtok }} /Mtok
+              </template>
+            </span>
+            <span
+              class="route-status"
+              :class="{ 'route-status--off': !r.is_active }"
             >
-              <Trash2 :size="14" style="color: var(--danger)" />
-            </AppButton>
-          </div>
-          <div class="form-grid">
-            <div class="form-group">
-              <label class="form-label">环境</label>
-              <AppSelect
-                v-model="routeItem.environment"
-                :options="environmentOptions"
-              />
-            </div>
-            <div class="form-group">
-              <label class="form-label">端点 URL</label>
-              <AppInput
-                v-model="routeItem.endpoint"
-                placeholder="https://..."
-              />
-            </div>
-            <div class="form-group form-group--full">
-              <label class="form-label">
-                API Key
-                <span v-if="!isNew" class="hint">（留空则不修改）</span>
-              </label>
-              <AppInput
-                v-model="routeItem.api_key"
-                type="password"
-                placeholder="sk-..."
-              />
-            </div>
-            <div class="form-group form-group--full">
-              <label class="form-label">额外参数 (JSON)</label>
-              <textarea
-                v-model="routeItem.extra_params_str"
-                class="json-textarea"
-                placeholder='{"temperature": 0.7}'
-                rows="3"
-              />
-            </div>
+              {{ r.is_active ? "启用" : "禁用" }}
+            </span>
           </div>
         </div>
       </section>
@@ -521,11 +592,11 @@ onMounted(loadData);
 </template>
 
 <style scoped>
-.page-header__row {
+.page-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  width: 100%;
+  margin-bottom: var(--space-6);
 }
 
 .page-header__left {
@@ -534,16 +605,29 @@ onMounted(loadData);
   gap: var(--space-3);
 }
 
+.error-alert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--danger-light);
+  color: #991b1b;
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-4);
+  font-size: var(--text-sm);
+}
+
 .skeleton-block {
   height: 400px;
   background: linear-gradient(
     90deg,
-    var(--surface-low) 25%,
-    var(--surface-high) 50%,
-    var(--surface-low) 75%
+    var(--gray-100) 25%,
+    var(--gray-200) 50%,
+    var(--gray-100) 75%
   );
   background-size: 200% 100%;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-lg);
   animation: shimmer 1.5s infinite;
 }
 
@@ -557,29 +641,30 @@ onMounted(loadData);
 }
 
 .form-section {
-  background: var(--surface-lowest);
-  border-radius: var(--radius-sm);
-  border: 1px solid rgba(169, 180, 185, 0.05);
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
   padding: var(--space-6);
   margin-bottom: var(--space-4);
 }
 
-.section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: var(--space-4);
-}
-
-.section-header .section-title {
-  margin-bottom: 0;
+.section-title {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: var(--space-2);
 }
 
 .section-desc {
   font-size: var(--text-sm);
-  color: var(--on-surface-variant);
+  color: var(--text-secondary);
   margin-bottom: var(--space-4);
-  margin-top: calc(-1 * var(--space-2));
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
 }
 
 .form-group {
@@ -591,10 +676,14 @@ onMounted(loadData);
   grid-column: 1 / -1;
 }
 
-.hint {
-  font-weight: 400;
-  color: var(--on-surface-variant);
-  font-size: var(--text-xs);
+.form-label {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: var(--space-2);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 
 .field-error {
@@ -615,86 +704,134 @@ onMounted(loadData);
   accent-color: var(--primary);
 }
 
-.capability-grid {
+.cap-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.cap-key {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.cap-required {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.cap-desc {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  margin: 0 0 var(--space-2);
+}
+
+.enum-grid {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
 }
 
-.capability-item {
+.enum-item {
   display: flex;
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   cursor: pointer;
   transition: all var(--transition-fast);
-  background: var(--surface-lowest);
+  background: var(--surface);
+  font-size: var(--text-sm);
 }
 
-.capability-item--active {
-  background: var(--primary-container, #eff6ff);
+.enum-item--active {
+  background: var(--primary-light, #eff6ff);
   border-color: var(--primary);
 }
 
-.capability-item input {
+.enum-item input {
   accent-color: var(--primary);
 }
 
-.cap-key {
+.enum-extra {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-low, var(--gray-50));
+  color: var(--text-secondary);
   font-size: var(--text-xs);
   font-family: var(--font-mono);
-  font-weight: 600;
-  color: var(--on-surface);
-}
-
-.cap-label {
-  font-size: var(--text-xs);
-  color: var(--on-surface-variant);
-}
-
-.capability-manual {
-  display: flex;
-  flex-direction: column;
-}
-
-.route-card {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: var(--space-4);
-  margin-bottom: var(--space-3);
-}
-
-.route-card__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: var(--space-3);
-}
-
-.route-index {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--on-surface-variant);
 }
 
 .json-textarea {
   width: 100%;
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   font-size: var(--text-sm);
   font-family: var(--font-mono);
-  color: var(--on-surface);
-  background: var(--surface-low);
+  color: var(--text);
+  background: var(--surface);
   resize: vertical;
-  transition: border-color var(--transition-fast);
   box-sizing: border-box;
 }
 
 .json-textarea:focus {
   outline: none;
   border-color: var(--primary);
+}
+
+.empty-hint {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  padding: var(--space-4);
+  text-align: center;
+}
+
+.routes-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.route-row {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr auto 1.5fr auto;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+}
+
+.route-provider {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.route-model {
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+}
+
+.route-priority,
+.route-pricing {
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+}
+
+.route-status {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--success);
+}
+
+.route-status--off {
+  color: var(--text-secondary);
 }
 </style>

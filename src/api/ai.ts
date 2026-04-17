@@ -1,13 +1,14 @@
 import { get, post, put, del } from "./request";
 import type {
   AIService,
+  AIServiceDetail,
   CreateServiceRequest,
   UpdateServiceRequest,
   TaskProfile,
   TaskDetailResponse,
   UpdateTaskRequest,
   UpdateTaskResponse,
-  CapabilitySchema,
+  CapabilitySchemaMap,
   MatchResult,
   AuditLog,
 } from "@/types/ai";
@@ -25,19 +26,19 @@ export const listServicesApi = (params?: {
   });
 
 export const getServiceApi = (id: number) =>
-  get<AIService>(`/v1/admin/ai/services/${id}`);
+  get<AIServiceDetail>(`/v1/admin/ai/services/${id}`);
 
 export const createServiceApi = (data: CreateServiceRequest) =>
   post<AIService>("/v1/admin/ai/services", data);
 
 export const updateServiceApi = (id: number, data: UpdateServiceRequest) =>
-  put<AIService>(`/v1/admin/ai/services/${id}`, data);
+  put<null>(`/v1/admin/ai/services/${id}`, data);
 
-export const deleteServiceApi = (id: number) =>
-  del<null>(`/v1/admin/ai/services/${id}`);
+export const deleteServiceApi = (id: number, reason?: string) =>
+  del<null>(`/v1/admin/ai/services/${id}`, { data: reason ? { reason } : {} });
 
-export const restoreServiceApi = (id: number) =>
-  post<AIService>(`/v1/admin/ai/services/${id}/restore`);
+export const restoreServiceApi = (id: number, reason: string) =>
+  post<null>(`/v1/admin/ai/services/${id}/restore`, { reason });
 
 // ====== Task Profiles ======
 
@@ -65,7 +66,7 @@ export const validateAgainstApi = (taskKey: string, serviceId: number) =>
 // ====== Capability Schema ======
 
 export const getCapabilitySchemaApi = () =>
-  get<CapabilitySchema>("/v1/admin/ai/capability-schema");
+  get<CapabilitySchemaMap>("/v1/admin/ai/capability-schema");
 
 // ====== Audit Logs ======
 

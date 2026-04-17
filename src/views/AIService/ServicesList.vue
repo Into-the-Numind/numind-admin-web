@@ -24,7 +24,7 @@ const processing = ref(false);
 
 // Filters
 const filterType = ref("");
-const filterStatus = ref("");
+const filterStatus = ref("active");
 
 const serviceTypeOptions = [
   { label: "全部类型", value: "" },
@@ -34,15 +34,14 @@ const serviceTypeOptions = [
 ];
 
 const statusOptions = [
-  { label: "全部状态", value: "" },
-  { label: "启用", value: "active" },
-  { label: "禁用", value: "inactive" },
-  { label: "已删除", value: "deleted" },
+  { label: "启用（默认）", value: "active" },
+  { label: "已删除", value: "deprecated" },
+  { label: "全部（含已删除）", value: "all" },
 ];
 
 const serviceStatusMap: Record<string, { label: string; color: string }> = {
   active: { label: "启用", color: "success" },
-  inactive: { label: "禁用", color: "warning" },
+  inactive: { label: "停用", color: "warning" },
   deleted: { label: "已删除", color: "danger" },
 };
 
@@ -52,30 +51,24 @@ const pendingDeleteId = ref(0);
 const pendingDeleteName = ref("");
 
 const columns: Column[] = [
-  { key: "name", title: "标识", width: "160px", align: "left" },
-  { key: "display_name", title: "显示名称", width: "160px", align: "left" },
+  { key: "model_key", title: "标识", width: "180px", align: "left" },
+  { key: "display_name", title: "显示名称", width: "180px", align: "left" },
   { key: "service_type", title: "类型", width: "80px" },
-  { key: "provider", title: "供应商", width: "120px" },
+  { key: "tiers", title: "档位 (延迟·质量)", width: "160px", align: "left" },
   { key: "status", title: "状态", width: "90px" },
-  { key: "pricing", title: "计费", width: "140px", align: "left" },
   { key: "actions", title: "操作", width: "120px" },
 ];
 
 function getStatus(service: AIService): string {
-  if (service.is_deleted) return "deleted";
+  if (service.deprecated_at) return "deleted";
   if (!service.is_active) return "inactive";
   return "active";
 }
 
-function getPricingText(service: AIService): string {
-  const meta = service.meta as Record<string, unknown> | undefined;
-  if (!meta) return "—";
-  const input = meta.input_price_per_mtok;
-  const output = meta.output_price_per_mtok;
-  if (input !== undefined && output !== undefined) {
-    return `¥${input}/${output}/Mtok`;
-  }
-  return "—";
+function getTiersText(service: AIService): string {
+  const latency = service.latency_tier || "standard";
+  const quality = service.quality_tier || "standard";
+  return `${latency} · ${quality}`;
 }
 
 async function fetchServices() {
@@ -110,7 +103,7 @@ function goCreate() {
 
 function confirmDelete(service: AIService) {
   pendingDeleteId.value = service.id;
-  pendingDeleteName.value = service.display_name || service.name;
+  pendingDeleteName.value = service.display_name || service.model_key;
   confirmVisible.value = true;
 }
 
@@ -133,7 +126,7 @@ async function restoreService(service: AIService) {
   if (processing.value) return;
   processing.value = true;
   try {
-    await restoreServiceApi(service.id);
+    await restoreServiceApi(service.id, "管理员恢复服务");
     toast.success("服务已恢复");
     await fetchServices();
   } catch (e) {
@@ -210,9 +203,9 @@ onMounted(fetchServices);
         />
       </template>
 
-      <template #cell-pricing="{ row }">
+      <template #cell-tiers="{ row }">
         <span class="text-mono text-muted">{{
-          getPricingText(row as AIService)
+          getTiersText(row as AIService)
         }}</span>
       </template>
 
@@ -228,7 +221,7 @@ onMounted(fetchServices);
             <Pencil :size="14" />
           </AppButton>
           <AppButton
-            v-if="(row as AIService).is_deleted"
+            v-if="(row as AIService).deprecated_at"
             size="sm"
             variant="ghost"
             :disabled="processing"
