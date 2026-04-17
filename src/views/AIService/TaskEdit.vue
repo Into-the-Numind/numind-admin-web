@@ -8,9 +8,9 @@ import {
   validateAgainstApi,
 } from "@/api/ai";
 import type {
-  TaskProfile,
+  TaskDetailResponse,
   AIService,
-  TaskBinding,
+  UpdateTaskRequest,
   MatchResult,
 } from "@/types/ai";
 import AppButton from "@/components/common/AppButton.vue";
@@ -23,13 +23,13 @@ const router = useRouter();
 const route = useRoute();
 const toast = useToast();
 
-const taskKey = computed(() => String(route.params.id));
+const taskId = computed(() => String(route.params.id));
 
 const loading = ref(false);
 const saving = ref(false);
 const error = ref("");
 
-const task = ref<TaskProfile | null>(null);
+const task = ref<TaskDetailResponse | null>(null);
 const services = ref<AIService[]>([]);
 
 // Validation results per service id
@@ -45,7 +45,6 @@ const selectedAllowedIds = ref<number[]>([]);
 const forceDialogVisible = ref(false);
 const overrideReason = ref("");
 const incompatibleBindings = ref<string[]>([]);
-const pendingForce = ref(false);
 
 // Options for AppSelect
 const serviceSelectOptions = computed(() => [
@@ -86,7 +85,7 @@ async function validateService(serviceId: number) {
   if (validationMap.value[serviceId] !== undefined) return; // already validated
   validating.value[serviceId] = true;
   try {
-    const result = await validateAgainstApi(task.value.task_id, serviceId);
+    const result = await validateAgainstApi(taskId.value, serviceId);
     validationMap.value[serviceId] = result;
   } catch {
     // ignore validation errors
@@ -123,7 +122,6 @@ function collectIncompatible(): string[] {
 async function save(force = false) {
   if (saving.value) return;
 
-  // Check for incompatible bindings
   if (!force) {
     const incompatible = collectIncompatible();
     if (incompatible.length > 0) {
@@ -134,25 +132,20 @@ async function save(force = false) {
   }
 
   saving.value = true;
-  pendingForce.value = false;
   try {
-    const binding: TaskBinding = {
+    const payload: UpdateTaskRequest = {
       default_service_id: selectedDefaultId.value,
-      fallback_service_id: selectedFallbackId.value,
+      fallback_service_ids:
+        selectedFallbackId.value != null ? [selectedFallbackId.value] : [],
       allowed_service_ids: [...selectedAllowedIds.value],
-      force_override: force,
-      override_reason: force ? overrideReason.value : undefined,
+      reason: force ? overrideReason.value : undefined,
     };
-    await updateTaskApi(taskKey.value, {
-      binding,
-      override_reason: force ? overrideReason.value : undefined,
-    });
+    await updateTaskApi(taskId.value, payload, force);
     toast.success("任务配置已保存");
     router.push("/ai-tasks");
   } catch (e) {
-    const err = e as Error & { code?: number };
-    if (err.code === 41001) {
-      // incompatible bindings from server
+    const err = e as Error & { code?: number | string };
+    if (err.code === "AIService.CapabilityMismatch") {
       incompatibleBindings.value = [err.message];
       forceDialogVisible.value = true;
     } else {
@@ -177,30 +170,29 @@ async function loadData() {
   error.value = "";
   try {
     const [taskRes, servicesRes] = await Promise.all([
-      getTaskApi(taskKey.value),
+      getTaskApi(taskId.value),
       listServicesApi({ page: 1, page_size: 100 }),
     ]);
     task.value = taskRes;
     services.value = servicesRes.list ?? [];
 
-    // Wait for Vue to render the service options before setting selected values
     await nextTick();
 
-    // Populate form from API response (top-level fields, not nested binding)
-    const data = taskRes as any;
-    selectedDefaultId.value = data.default_service_id ?? null;
-    // fallbacks is an array of service objects; take first one's id
-    const fallbackArr = data.fallbacks as any[] | null;
-    selectedFallbackId.value =
-      fallbackArr && fallbackArr.length > 0 ? fallbackArr[0].id : null;
-    // allowed is an array of service objects; extract ids
-    const allowedArr = data.allowed as any[] | null;
-    selectedAllowedIds.value = (allowedArr ?? []).map((s: any) => s.id);
+    selectedDefaultId.value = taskRes.default_service_id ?? null;
+    // UI supports a single fallback by design; backend allows multiple. If the
+    // stored list has >1, we show the first and warn the user — saving would
+    // otherwise silently truncate the rest.
+    const fallbacks = taskRes.fallbacks ?? [];
+    selectedFallbackId.value = fallbacks.length > 0 ? fallbacks[0].id : null;
+    if (fallbacks.length > 1) {
+      toast.error(
+        `后端记录了 ${fallbacks.length} 个 fallback，此页面仅能编辑第一个；保存将丢弃其余`,
+      );
+    }
+    selectedAllowedIds.value = (taskRes.allowed ?? []).map((s) => s.id);
 
-    // Force another tick to ensure select elements reflect the new values
     await nextTick();
 
-    // Pre-validate existing selections
     const toValidate = [
       selectedDefaultId.value,
       selectedFallbackId.value,
@@ -214,7 +206,7 @@ async function loadData() {
   }
 }
 
-watch(taskKey, loadData);
+watch(taskId, loadData);
 onMounted(loadData);
 </script>
 
@@ -265,15 +257,15 @@ onMounted(loadData);
           <div class="info-item">
             <span class="info-label">服务类型</span>
             <span class="info-value">{{
-              (task as any).service_type?.toUpperCase() || "—"
+              task.service_type?.toUpperCase() || "—"
             }}</span>
           </div>
           <div class="info-item">
             <span class="info-label">能力要求</span>
             <div class="cap-tags">
-              <template v-if="(task as any).requirements">
+              <template v-if="task.requirements">
                 <span
-                  v-for="(val, key) in (task as any).requirements"
+                  v-for="(val, key) in task.requirements"
                   :key="String(key)"
                   class="cap-tag"
                 >
@@ -282,7 +274,9 @@ onMounted(loadData);
                     Array.isArray(val)
                       ? val.join(", ")
                       : typeof val === "object" && val !== null
-                        ? Object.keys(val).filter((k) => (val as Record<string, unknown>)[k]).join(", ")
+                        ? Object.keys(val)
+                            .filter((k) => (val as Record<string, unknown>)[k])
+                            .join(", ")
                         : val
                   }}
                 </span>

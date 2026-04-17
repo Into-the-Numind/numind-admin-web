@@ -60,29 +60,46 @@ export type UpdateServiceRequest = Partial<CreateServiceRequest> & {
 
 // ====== Task Profile ======
 
-export interface TaskBinding {
-  default_service_id: number | null;
-  fallback_service_id: number | null;
-  allowed_service_ids: number[];
-  force_override: boolean;
-  override_reason?: string;
-}
-
 export interface TaskProfile {
+  id: number;
   task_id: string;
   display_name: string;
   description: string;
-  required_capabilities: string[];
-  binding: TaskBinding;
-  default_binding?: TaskBinding;
-  updated_at?: string;
+  service_type: string;
+  requirements?: Record<string, unknown>;
   default_service_id?: number | null;
+  user_selectable: boolean;
+  extra_metadata?: Record<string, unknown>;
+  created_at?: string;
+  updated_at?: string;
   fallback_count?: number;
   allowed_count?: number;
 }
 
-export interface ValidateAgainstRequest {
+export interface TaskDetailResponse extends TaskProfile {
+  default_service: AIService | null;
+  fallbacks: AIService[];
+  allowed: AIService[];
+}
+
+export interface UpdateTaskRequest {
+  requirements?: Record<string, unknown>;
+  default_service_id?: number | null;
+  fallback_service_ids?: number[];
+  allowed_service_ids?: number[];
+  reason?: string;
+}
+
+export interface IncompatibleBinding {
+  role: string;
   service_id: number;
+  service_name: string;
+  reasons: string[];
+}
+
+export interface UpdateTaskResponse {
+  compatible: boolean;
+  incompatible_bindings?: IncompatibleBinding[];
 }
 
 export interface MatchResult {

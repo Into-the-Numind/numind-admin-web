@@ -4,7 +4,9 @@ import type {
   CreateServiceRequest,
   UpdateServiceRequest,
   TaskProfile,
-  TaskBinding,
+  TaskDetailResponse,
+  UpdateTaskRequest,
+  UpdateTaskResponse,
   CapabilitySchema,
   MatchResult,
   AuditLog,
@@ -42,16 +44,18 @@ export const restoreServiceApi = (id: number) =>
 export const listTasksApi = (params?: { page?: number; page_size?: number }) =>
   get<{ list: TaskProfile[]; total: number }>("/v1/admin/ai/tasks", { params });
 
-export const getTaskApi = (taskKey: string) =>
-  get<TaskProfile>(`/v1/admin/ai/tasks/${taskKey}`);
+export const getTaskApi = (taskId: string) =>
+  get<TaskDetailResponse>(`/v1/admin/ai/tasks/${taskId}`);
 
 export const updateTaskApi = (
-  taskKey: string,
-  data: {
-    binding: TaskBinding;
-    override_reason?: string;
-  },
-) => put<TaskProfile>(`/v1/admin/ai/tasks/${taskKey}`, data);
+  taskId: string,
+  data: UpdateTaskRequest,
+  force = false,
+) =>
+  put<UpdateTaskResponse>(
+    `/v1/admin/ai/tasks/${taskId}${force ? "?force=true" : ""}`,
+    data,
+  );
 
 export const validateAgainstApi = (taskKey: string, serviceId: number) =>
   post<MatchResult>(
