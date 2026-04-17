@@ -40,7 +40,7 @@ function _getCapabilityType(caps: string[]): string {
   return "LLM";
 }
 
-function getDefaultServiceName(task: any): string {
+function getDefaultServiceName(task: TaskProfile): string {
   const id = task.default_service_id;
   if (!id) return "—";
   const svc = serviceMap.value[id];
@@ -115,9 +115,13 @@ onMounted(fetchTasks);
         <span class="service-name">{{ getDefaultServiceName(row) }}</span>
       </template>
 
-      <template #cell-fallback_count> 0 </template>
+      <template #cell-fallback_count="{ row }">
+        {{ (row as TaskProfile).fallback_count ?? 0 }}
+      </template>
 
-      <template #cell-allowed_count> 0 </template>
+      <template #cell-allowed_count="{ row }">
+        {{ (row as TaskProfile).allowed_count ?? 0 }}
+      </template>
 
       <template #cell-actions="{ row }">
         <div class="action-buttons">

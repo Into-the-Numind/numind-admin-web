@@ -76,6 +76,9 @@ export interface TaskProfile {
   binding: TaskBinding;
   default_binding?: TaskBinding;
   updated_at?: string;
+  default_service_id?: number | null;
+  fallback_count?: number;
+  allowed_count?: number;
 }
 
 export interface ValidateAgainstRequest {
