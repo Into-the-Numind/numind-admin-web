@@ -93,18 +93,6 @@ const router = createRouter({
           meta: { title: "订单管理" },
         },
         {
-          path: "llm-providers",
-          name: "LLMProviders",
-          component: () => import("@/views/LLMProvidersView.vue"),
-          meta: { title: "LLM 供应商" },
-        },
-        {
-          path: "llm-models",
-          name: "LLMModels",
-          component: () => import("@/views/LLMModelsView.vue"),
-          meta: { title: "LLM 模型" },
-        },
-        {
           path: "ai-services",
           name: "AIServices",
           component: () => import("@/views/AIService/ServicesList.vue"),

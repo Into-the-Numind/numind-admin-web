@@ -17,8 +17,6 @@ import {
   LogOut,
   Coins,
   ShoppingCart,
-  Cpu,
-  Bot,
   Layers,
   ListChecks,
   ScrollText,
@@ -81,18 +79,6 @@ const navItems = [
   },
   { name: "credits", label: "额度管理", icon: Coins, path: "/credits" },
   { name: "orders", label: "订单管理", icon: ShoppingCart, path: "/orders" },
-  {
-    name: "LLMProviders",
-    label: "LLM 供应商",
-    icon: Cpu,
-    path: "/llm-providers",
-  },
-  {
-    name: "LLMModels",
-    label: "LLM 模型",
-    icon: Bot,
-    path: "/llm-models",
-  },
   {
     name: "AIServices",
     label: "AI 服务",
