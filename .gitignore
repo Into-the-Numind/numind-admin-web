@@ -24,3 +24,9 @@ coverage
 *.sln
 *.sw?
 .gstack/
+
+# Playwright
+/e2e/.auth/
+/test-results/
+/playwright-report/
+/playwright/.cache/
