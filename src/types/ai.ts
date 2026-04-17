@@ -1,7 +1,4 @@
 // ====== Capability Schema ======
-//
-// Backend `profile.CapabilitySchema` / `profile.CapabilityField` have no JSON
-// tags, so the wire format is Go's default PascalCase. Mirror that here.
 
 export type CapabilityFieldType =
   | "modalities"
@@ -11,16 +8,16 @@ export type CapabilityFieldType =
   | "feature_map";
 
 export interface CapabilityField {
-  Name: string;
-  Type: CapabilityFieldType;
-  Required: boolean;
-  EnumValues?: string[];
-  Description: string;
+  name: string;
+  type: CapabilityFieldType;
+  required: boolean;
+  enum_values?: string[];
+  description: string;
 }
 
 export interface CapabilitySchema {
-  ServiceType: string;
-  Fields: CapabilityField[];
+  service_type: string;
+  fields: CapabilityField[];
 }
 
 export type CapabilitySchemaMap = Record<string, CapabilitySchema>;

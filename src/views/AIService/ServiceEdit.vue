@@ -68,7 +68,7 @@ const fieldErrors = ref<Record<string, string>>({});
 
 const capabilitySchemaMap = ref<CapabilitySchemaMap>({});
 const currentFields = computed<CapabilityField[]>(
-  () => capabilitySchemaMap.value[form.value.service_type]?.Fields ?? [],
+  () => capabilitySchemaMap.value[form.value.service_type]?.fields ?? [],
 );
 
 const routes = ref<AIServiceRoute[]>([]);
@@ -97,8 +97,8 @@ function setCapValue(name: string, value: unknown) {
 }
 
 function toggleEnumMember(field: CapabilityField, enumValue: string) {
-  const cur = (getCapValue(field.Name) as string[] | undefined) ?? [];
-  const enumSet = new Set(field.EnumValues ?? []);
+  const cur = (getCapValue(field.name) as string[] | undefined) ?? [];
+  const enumSet = new Set(field.enum_values ?? []);
   // Preserve values that are not in EnumValues so schema evolution (or a stored
   // value the UI doesn't render as a checkbox) doesn't get silently dropped.
   const extras = cur.filter((v) => typeof v === "string" && !enumSet.has(v));
@@ -108,7 +108,7 @@ function toggleEnumMember(field: CapabilityField, enumValue: string) {
   const nextEnum = enumMembers.includes(enumValue)
     ? enumMembers.filter((v) => v !== enumValue)
     : [...enumMembers, enumValue];
-  setCapValue(field.Name, [...nextEnum, ...extras]);
+  setCapValue(field.name, [...nextEnum, ...extras]);
 }
 
 function isEnumMember(fieldName: string, enumValue: string): boolean {
@@ -117,9 +117,9 @@ function isEnumMember(fieldName: string, enumValue: string): boolean {
 }
 
 function unknownEnumValues(field: CapabilityField): string[] {
-  const cur = getCapValue(field.Name);
+  const cur = getCapValue(field.name);
   if (!Array.isArray(cur)) return [];
-  const enumSet = new Set(field.EnumValues ?? []);
+  const enumSet = new Set(field.enum_values ?? []);
   return cur.filter(
     (v): v is string => typeof v === "string" && !enumSet.has(v),
   );
@@ -379,32 +379,32 @@ onMounted(loadData);
         <div v-else class="cap-fields">
           <div
             v-for="field in currentFields"
-            :key="field.Name"
+            :key="field.name"
             class="form-group form-group--full"
           >
             <label class="form-label">
-              <span class="cap-key">{{ field.Name }}</span>
-              <span v-if="field.Required" class="cap-required">*</span>
+              <span class="cap-key">{{ field.name }}</span>
+              <span v-if="field.required" class="cap-required">*</span>
             </label>
-            <p class="cap-desc">{{ field.Description }}</p>
+            <p class="cap-desc">{{ field.description }}</p>
 
             <div
               v-if="
-                (field.Type === 'modalities' || field.Type === 'string_list') &&
-                field.EnumValues &&
-                field.EnumValues.length > 0
+                (field.type === 'modalities' || field.type === 'string_list') &&
+                field.enum_values &&
+                field.enum_values.length > 0
               "
               class="enum-grid"
             >
               <label
-                v-for="ev in field.EnumValues"
+                v-for="ev in field.enum_values"
                 :key="ev"
                 class="enum-item"
-                :class="{ 'enum-item--active': isEnumMember(field.Name, ev) }"
+                :class="{ 'enum-item--active': isEnumMember(field.name, ev) }"
               >
                 <input
                   type="checkbox"
-                  :checked="isEnumMember(field.Name, ev)"
+                  :checked="isEnumMember(field.name, ev)"
                   @change="toggleEnumMember(field, ev)"
                 />
                 <span>{{ ev }}</span>
@@ -420,64 +420,64 @@ onMounted(loadData);
             </div>
 
             <AppInput
-              v-else-if="field.Type === 'string_list'"
-              :model-value="capListText(field.Name)"
+              v-else-if="field.type === 'string_list'"
+              :model-value="capListText(field.name)"
               placeholder="逗号分隔，如 zh, en"
               @update:model-value="
                 (v: string | number | null) =>
-                  setCapListFromText(field.Name, String(v ?? ''))
+                  setCapListFromText(field.name, String(v ?? ''))
               "
             />
 
             <AppInput
-              v-else-if="field.Type === 'int'"
-              :model-value="capIntValue(field.Name)"
+              v-else-if="field.type === 'int'"
+              :model-value="capIntValue(field.name)"
               type="number"
               placeholder="0"
               @update:model-value="
                 (v: string | number | null) =>
-                  setCapInt(field.Name, v == null ? '' : String(v))
+                  setCapInt(field.name, v == null ? '' : String(v))
               "
             />
 
-            <label v-else-if="field.Type === 'bool'" class="checkbox-label">
+            <label v-else-if="field.type === 'bool'" class="checkbox-label">
               <input
                 type="checkbox"
                 class="checkbox"
-                :checked="capBoolValue(field.Name)"
+                :checked="capBoolValue(field.name)"
                 @change="
                   setCapValue(
-                    field.Name,
+                    field.name,
                     ($event.target as HTMLInputElement).checked,
                   )
                 "
               />
-              {{ field.Description }}
+              {{ field.description }}
             </label>
 
-            <template v-else-if="field.Type === 'feature_map'">
+            <template v-else-if="field.type === 'feature_map'">
               <textarea
                 class="json-textarea"
-                :value="featureMapText(field.Name)"
+                :value="featureMapText(field.name)"
                 rows="4"
                 @change="
                   setFeatureMapFromText(
-                    field.Name,
+                    field.name,
                     ($event.target as HTMLTextAreaElement).value,
                   )
                 "
               />
-              <p v-if="fieldErrors[`cap.${field.Name}`]" class="field-error">
-                {{ fieldErrors[`cap.${field.Name}`] }}
+              <p v-if="fieldErrors[`cap.${field.name}`]" class="field-error">
+                {{ fieldErrors[`cap.${field.name}`] }}
               </p>
             </template>
 
             <AppInput
               v-else
-              :model-value="String(getCapValue(field.Name) ?? '')"
+              :model-value="String(getCapValue(field.name) ?? '')"
               @update:model-value="
                 (v: string | number | null) =>
-                  setCapValue(field.Name, String(v ?? ''))
+                  setCapValue(field.name, String(v ?? ''))
               "
             />
           </div>
