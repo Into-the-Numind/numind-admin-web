@@ -16,7 +16,6 @@ import type { ProviderDTO } from "@/types/ai";
 import { getPricingRulesApi, type PricingRule } from "@/api/billing";
 import type {
   AIServiceDetail,
-  AIServiceRoute,
   RouteDTO,
   CapabilityField,
   CapabilitySchemaMap,
@@ -88,8 +87,8 @@ const currentFields = computed<CapabilityField[]>(
   () => capabilitySchemaMap.value[form.value.service_type]?.fields ?? [],
 );
 
-// Routes — local working copy (RouteDTO from CRUD; AIServiceRoute from GET service detail)
-const routes = ref<(AIServiceRoute | RouteDTO)[]>([]);
+// Routes — local working copy; RouteDTO is the canonical shape for all route data
+const routes = ref<RouteDTO[]>([]);
 // Track per-route saving state
 const routeSaving = ref<Record<number, boolean>>({});
 
@@ -140,7 +139,7 @@ const routePricingMap = computed(() => {
   for (const r of routes.value) {
     const matched = pricingRules.value.filter(
       (pr) =>
-        pr.provider === (r as RouteDTO).provider_name &&
+        pr.provider === r.provider_name &&
         (pr.model === form.value.model_key || pr.model === r.provider_model_id),
     );
     map[r.id] = matched;
@@ -377,7 +376,7 @@ async function save() {
 
 // ====== Route editing ======
 
-function startEditRoute(r: AIServiceRoute | RouteDTO) {
+function startEditRoute(r: RouteDTO) {
   routeEditState.value[r.id] = {
     provider_model_id: r.provider_model_id,
     priority: String(r.priority),
@@ -390,7 +389,7 @@ function cancelEditRoute(id: number) {
   delete routeEditState.value[id];
 }
 
-async function saveRoute(r: AIServiceRoute | RouteDTO) {
+async function saveRoute(r: RouteDTO) {
   const state = routeEditState.value[r.id];
   if (!state) return;
   const priority = Number(state.priority);
@@ -423,7 +422,7 @@ async function saveRoute(r: AIServiceRoute | RouteDTO) {
   }
 }
 
-async function toggleRoute(r: AIServiceRoute | RouteDTO) {
+async function toggleRoute(r: RouteDTO) {
   routeSaving.value[r.id] = true;
   try {
     const res = await toggleRouteApi(r.id);
@@ -502,7 +501,7 @@ async function submitAddRoute() {
       is_active: addRouteForm.value.is_active,
     };
     const res = await createRouteApi(serviceId.value, payload);
-    routes.value = [...routes.value, res.route as unknown as AIServiceRoute];
+    routes.value = [...routes.value, res.route];
     addRouteVisible.value = false;
     if (res.warnings && res.warnings.length > 0) {
       toast.info(`路由已创建（提示：${res.warnings.join("；")}）`);
@@ -534,13 +533,34 @@ function formatPrice(rule: PricingRule): string {
   return "—";
 }
 
-function hasTiered(rule: PricingRule): boolean {
-  // We don't have tier count in PricingRule directly; treat tiered as rule with
-  // both sell and cost token prices set (heuristic). The admin can always
-  // navigate to PricingRulesView for full detail.
-  return (
-    rule.sell_input_price_per_mtok > 0 || rule.sell_output_price_per_mtok > 0
-  );
+/** Returns the billing mode label based on which price fields are non-zero. */
+function billingModeLabel(rule: PricingRule): string {
+  if (
+    (rule.input_price_per_mtok ?? 0) > 0 ||
+    (rule.output_price_per_mtok ?? 0) > 0
+  ) {
+    return "按量计费";
+  }
+  if ((rule.price_per_call ?? 0) > 0) {
+    return "按次计费";
+  }
+  if ((rule.price_per_gb ?? 0) > 0) {
+    return "按量计费";
+  }
+  return "未配置";
+}
+
+function billingModeCss(rule: PricingRule): string {
+  if (
+    (rule.input_price_per_mtok ?? 0) > 0 ||
+    (rule.output_price_per_mtok ?? 0) > 0
+  ) {
+    return "pricing-badge--token";
+  }
+  if ((rule.price_per_call ?? 0) > 0) {
+    return "pricing-badge--call";
+  }
+  return "pricing-badge--flat";
 }
 
 watch(() => route.params.id, loadData);
@@ -968,15 +988,8 @@ onMounted(loadData);
                 :key="pr.id"
                 class="pricing-rule-item"
               >
-                <span
-                  class="pricing-badge"
-                  :class="
-                    hasTiered(pr)
-                      ? 'pricing-badge--tiered'
-                      : 'pricing-badge--flat'
-                  "
-                >
-                  {{ hasTiered(pr) ? "tiered" : "flat" }}
+                <span class="pricing-badge" :class="billingModeCss(pr)">
+                  {{ billingModeLabel(pr) }}
                 </span>
                 <span class="pricing-summary">{{ formatPrice(pr) }}</span>
                 <span class="pricing-type">{{ pr.service_type }}</span>
@@ -1463,11 +1476,16 @@ onMounted(loadData);
 }
 
 .pricing-badge--flat {
+  background: var(--gray-100, #f3f4f6);
+  color: var(--text-secondary);
+}
+
+.pricing-badge--token {
   background: #dbeafe;
   color: #1e40af;
 }
 
-.pricing-badge--tiered {
+.pricing-badge--call {
   background: #fef3c7;
   color: #92400e;
 }

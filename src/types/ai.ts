@@ -24,22 +24,10 @@ export type CapabilitySchemaMap = Record<string, CapabilitySchema>;
 
 // ====== AI Service ======
 
-export interface AIServiceRoute {
-  id: number;
-  provider_id: number;
-  provider_name: string;
-  provider_model_id: string;
-  priority: number;
-  pricing_unit: string;
-  input_price_per_mtok: number;
-  output_price_per_mtok: number;
-  price_per_call?: number;
-  price_per_second?: number;
-  is_active: boolean;
-}
-
-// RouteDTO is the shape returned by route CRUD endpoints (Wave 1 backend).
+// RouteDTO is the canonical route shape returned by all route CRUD endpoints.
 // Pricing fields are intentionally absent — they live in pricing_rule.
+// Legacy AIServiceRoute (with 5 pricing fields) was removed in T3 review;
+// T-arch dropped pricing from the backend DTO struct.
 export interface RouteDTO {
   id: number;
   service_id: number;
@@ -48,8 +36,8 @@ export interface RouteDTO {
   provider_model_id: string;
   priority: number;
   is_active: boolean;
-  created_at: string;
-  updated_at: string;
+  created_at?: string; // omitted by backend slim DTO
+  updated_at?: string; // omitted by backend slim DTO
 }
 
 export interface CreateRouteRequest {
@@ -87,7 +75,7 @@ export interface AIService {
 }
 
 export interface AIServiceDetail extends AIService {
-  routes: AIServiceRoute[];
+  routes: RouteDTO[];
 }
 
 export interface CreateServiceRequest {
