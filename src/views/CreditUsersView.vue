@@ -31,6 +31,9 @@ const detailVisible = ref(false);
 const detailLoading = ref(false);
 const detail = ref<CreditUserDetail | null>(null);
 const selectedUserId = ref(0);
+// F.4: tab inside detail modal
+type DetailTab = "overview" | "reservations";
+const activeTab = ref<DetailTab>("overview");
 
 // Recharge modal
 const rechargeVisible = ref(false);
@@ -49,6 +52,13 @@ const packageStatusMap: Record<string, { label: string; color: string }> = {
   active: { label: "使用中", color: "success" },
   exhausted: { label: "已耗尽", color: "gray" },
   expired: { label: "已过期", color: "danger" },
+};
+
+// F.4: reservation lifecycle (Reserve → Finalize consumed / Refund refunded)
+const reservationStatusMap: Record<string, { label: string; color: string }> = {
+  reserved: { label: "已预留", color: "info" },
+  consumed: { label: "已扣减", color: "gray" },
+  refunded: { label: "已退款", color: "gray" },
 };
 
 const columns: Column[] = [
@@ -92,6 +102,7 @@ async function openDetail(userId: number) {
   detailVisible.value = true;
   detailLoading.value = true;
   detail.value = null;
+  activeTab.value = "overview";
   try {
     detail.value = await getCreditUserDetail(userId);
   } catch (e) {
@@ -195,6 +206,7 @@ onMounted(fetchList);
           <AppButton
             size="sm"
             variant="ghost"
+            :data-test="`row-view-${(row as CreditUserListItem).user_id}`"
             @click.stop="openDetail((row as CreditUserListItem).user_id)"
           >
             查看
@@ -240,6 +252,16 @@ onMounted(fetchList);
             <div v-if="detailLoading" class="modal-loading">加载中...</div>
 
             <template v-else-if="detail">
+              <!-- F.4: Legacy-tier banner (spec §4.4.4) -->
+              <div
+                v-if="detail.billing_mode === 'legacy_tier'"
+                class="banner legacy-tier"
+                data-test="legacy-tier-banner"
+              >
+                此用户为 <code>billing_mode=legacy_tier</code>（Grandfathering
+                老会员）。 credit_package 自然过期不扣减，到期升级后进入积分制。
+              </div>
+
               <!-- Account summary -->
               <div class="detail-summary">
                 <span
@@ -251,66 +273,172 @@ onMounted(fetchList);
                 />
               </div>
 
-              <!-- Packages -->
-              <h4 class="section-title">额度包</h4>
-              <table class="inner-table" v-if="detail.packages?.length">
-                <thead>
-                  <tr>
-                    <th>类型</th>
-                    <th>总额度</th>
-                    <th>剩余</th>
-                    <th>生效时间</th>
-                    <th>到期时间</th>
-                    <th>状态</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="pkg in detail.packages" :key="pkg.id">
-                    <td>{{ pkg.type }}</td>
-                    <td>{{ pkg.total_credits }}</td>
-                    <td>{{ pkg.remain_credits }}</td>
-                    <td class="text-muted">
-                      {{ formatDate(pkg.activated_at) }}
-                    </td>
-                    <td class="text-muted">{{ formatDate(pkg.expires_at) }}</td>
-                    <td>
-                      <StatusBadge
-                        :status="pkg.status"
-                        :map="packageStatusMap"
-                      />
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-              <p v-else class="empty-hint">暂无额度包</p>
+              <!-- F.4: Tabs -->
+              <div class="tab-bar" role="tablist">
+                <button
+                  type="button"
+                  class="tab-btn"
+                  :class="{ 'tab-btn--active': activeTab === 'overview' }"
+                  role="tab"
+                  :aria-selected="activeTab === 'overview'"
+                  data-test="tab-overview"
+                  @click="activeTab = 'overview'"
+                >
+                  概览
+                </button>
+                <button
+                  type="button"
+                  class="tab-btn"
+                  :class="{
+                    'tab-btn--active': activeTab === 'reservations',
+                  }"
+                  role="tab"
+                  :aria-selected="activeTab === 'reservations'"
+                  data-test="tab-reservations"
+                  @click="activeTab = 'reservations'"
+                >
+                  活跃 Reservation
+                  <span
+                    v-if="detail.reservations && detail.reservations.length"
+                    class="tab-badge"
+                  >
+                    {{
+                      detail.reservations.filter((r) => r.status === "reserved")
+                        .length
+                    }}
+                  </span>
+                </button>
+              </div>
 
-              <!-- Transactions -->
-              <h4 class="section-title">额度流水</h4>
-              <table class="inner-table" v-if="detail.transactions?.length">
-                <thead>
-                  <tr>
-                    <th>金额</th>
-                    <th>操作</th>
-                    <th>业务类型</th>
-                    <th>时间</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="tx in detail.transactions" :key="tx.id">
-                    <td
-                      :class="
-                        tx.amount > 0 ? 'amount-positive' : 'amount-negative'
-                      "
+              <!-- Overview tab -->
+              <section v-if="activeTab === 'overview'" role="tabpanel">
+                <!-- Packages -->
+                <h4 class="section-title">额度包</h4>
+                <table class="inner-table" v-if="detail.packages?.length">
+                  <thead>
+                    <tr>
+                      <th>类型</th>
+                      <th>总额度</th>
+                      <th>剩余</th>
+                      <th>生效时间</th>
+                      <th>到期时间</th>
+                      <th>状态</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="pkg in detail.packages" :key="pkg.id">
+                      <td>{{ pkg.type }}</td>
+                      <td>{{ pkg.total_credits }}</td>
+                      <td>{{ pkg.remain_credits }}</td>
+                      <td class="text-muted">
+                        {{ formatDate(pkg.activated_at) }}
+                      </td>
+                      <td class="text-muted">
+                        {{ formatDate(pkg.expires_at) }}
+                      </td>
+                      <td>
+                        <StatusBadge
+                          :status="pkg.status"
+                          :map="packageStatusMap"
+                        />
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+                <p v-else class="empty-hint">暂无额度包</p>
+
+                <!-- Transactions -->
+                <h4 class="section-title">额度流水</h4>
+                <table class="inner-table" v-if="detail.transactions?.length">
+                  <thead>
+                    <tr>
+                      <th>金额</th>
+                      <th>操作</th>
+                      <th>业务类型</th>
+                      <th>时间</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="tx in detail.transactions" :key="tx.id">
+                      <td
+                        :class="
+                          tx.amount > 0 ? 'amount-positive' : 'amount-negative'
+                        "
+                      >
+                        {{ tx.amount > 0 ? "+" : "" }}{{ tx.amount }}
+                      </td>
+                      <td>{{ tx.operation }}</td>
+                      <td class="text-muted">{{ tx.biz_ref_type }}</td>
+                      <td class="text-muted">
+                        {{ formatDate(tx.created_at) }}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+                <p v-else class="empty-hint">暂无流水记录</p>
+              </section>
+
+              <!-- F.4: Reservations tab -->
+              <section
+                v-else-if="activeTab === 'reservations'"
+                role="tabpanel"
+                data-test="reservations-panel"
+              >
+                <h4 class="section-title">
+                  活跃 Reservation (status=reserved)
+                </h4>
+                <p class="reservation-hint">
+                  显示当前用户已 Reserve 但尚未 Finalize / Refund 的记录。
+                  正常情况下数量应为 0；若长期存在 reserved 记录，通常表示 SOP
+                  步骤执行中或排障目标。
+                </p>
+                <table
+                  class="inner-table"
+                  v-if="
+                    detail.reservations &&
+                    detail.reservations.filter((r) => r.status === 'reserved')
+                      .length
+                  "
+                >
+                  <thead>
+                    <tr>
+                      <th>Reservation ID</th>
+                      <th>金额</th>
+                      <th>状态</th>
+                      <th>Biz Ref Type</th>
+                      <th>Biz Ref ID</th>
+                      <th>创建时间</th>
+                      <th>到期时间</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr
+                      v-for="r in detail.reservations.filter(
+                        (rr) => rr.status === 'reserved',
+                      )"
+                      :key="r.id"
                     >
-                      {{ tx.amount > 0 ? "+" : "" }}{{ tx.amount }}
-                    </td>
-                    <td>{{ tx.operation }}</td>
-                    <td class="text-muted">{{ tx.biz_ref_type }}</td>
-                    <td class="text-muted">{{ formatDate(tx.created_at) }}</td>
-                  </tr>
-                </tbody>
-              </table>
-              <p v-else class="empty-hint">暂无流水记录</p>
+                      <td>{{ r.id }}</td>
+                      <td>{{ r.amount }}</td>
+                      <td>
+                        <StatusBadge
+                          :status="r.status"
+                          :map="reservationStatusMap"
+                        />
+                      </td>
+                      <td class="text-muted">{{ r.ref_type || "-" }}</td>
+                      <td class="text-muted">{{ r.ref_id || "-" }}</td>
+                      <td class="text-muted">
+                        {{ formatDate(r.created_at) }}
+                      </td>
+                      <td class="text-muted">
+                        {{ r.expires_at ? formatDate(r.expires_at) : "-" }}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+                <p v-else class="empty-hint">暂无活跃 reservation</p>
+              </section>
 
               <div class="modal-actions">
                 <AppButton
@@ -475,5 +603,86 @@ onMounted(fetchList);
   font-size: var(--text-sm);
   text-align: center;
   padding: var(--space-4);
+}
+
+/* F.4: legacy-tier banner + tab bar */
+.banner {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  margin-bottom: var(--space-3);
+}
+
+.banner.legacy-tier {
+  background: var(--warning-soft, rgba(255, 196, 0, 0.12));
+  color: var(--on-surface);
+  border-left: 3px solid var(--warning, #d97706);
+}
+
+.banner code {
+  font-family: ui-monospace, "SF Mono", monospace;
+  background: rgba(0, 0, 0, 0.06);
+  padding: 0 4px;
+  border-radius: 3px;
+  font-size: var(--text-xs);
+}
+
+.tab-bar {
+  display: flex;
+  gap: var(--space-1);
+  border-bottom: 1px solid var(--outline-variant);
+  margin: var(--space-4) 0 var(--space-3);
+}
+
+.tab-btn {
+  background: transparent;
+  border: none;
+  padding: var(--space-2) var(--space-3);
+  font-family: var(--font-label);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--on-surface-variant);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition:
+    color var(--transition-fast),
+    border-color var(--transition-fast);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.tab-btn:hover {
+  color: var(--on-surface);
+}
+
+.tab-btn--active {
+  color: var(--tertiary);
+  border-bottom-color: var(--tertiary);
+}
+
+.tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 9px;
+  background: var(--primary);
+  color: var(--on-primary);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.reservation-hint {
+  font-size: var(--text-xs);
+  color: var(--on-surface-variant);
+  margin: 0 0 var(--space-3);
+  line-height: 1.5;
 }
 </style>

@@ -140,6 +140,19 @@ const router = createRouter({
           component: () => import("@/views/AIService/ProviderEdit.vue"),
           meta: { title: "编辑 AI 供应商" },
         },
+        // F.4: credits-system admin pages
+        {
+          path: "ai-services/coefficients",
+          name: "EstimationCoefficients",
+          component: () => import("@/views/EstimationCoefficientView.vue"),
+          meta: { title: "估算系数" },
+        },
+        {
+          path: "system-tools/migrations",
+          name: "Migrations",
+          component: () => import("@/views/MigrationsView.vue"),
+          meta: { title: "迁移工具" },
+        },
       ],
     },
     {
