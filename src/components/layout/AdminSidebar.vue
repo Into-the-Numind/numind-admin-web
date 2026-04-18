@@ -20,6 +20,7 @@ import {
   Layers,
   ListChecks,
   ScrollText,
+  Server,
 } from "lucide-vue-next";
 
 const props = defineProps<{ collapsed: boolean }>();
@@ -96,6 +97,12 @@ const navItems = [
     label: "AI 审计日志",
     icon: ScrollText,
     path: "/ai-audit-logs",
+  },
+  {
+    name: "AIProvidersList",
+    label: "AI 供应商",
+    icon: Server,
+    path: "/ai-providers",
   },
 ];
 

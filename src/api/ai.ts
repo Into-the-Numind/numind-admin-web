@@ -11,6 +11,10 @@ import type {
   CapabilitySchemaMap,
   MatchResult,
   AuditLog,
+  ProviderDTO,
+  CreateProviderRequest,
+  UpdateProviderRequest,
+  TestConnectionResult,
 } from "@/types/ai";
 
 // ====== AI Services ======
@@ -67,6 +71,31 @@ export const validateAgainstApi = (taskKey: string, serviceId: number) =>
 
 export const getCapabilitySchemaApi = () =>
   get<CapabilitySchemaMap>("/v1/admin/ai/capability-schema");
+
+// ====== Audit Logs ======
+
+// ====== AI Providers ======
+
+export const listProvidersApi = () =>
+  get<{ list: ProviderDTO[]; total: number }>(`/v1/admin/ai/providers`);
+
+export const getProviderApi = (id: number) =>
+  get<ProviderDTO>(`/v1/admin/ai/providers/${id}`);
+
+export const createProviderApi = (data: CreateProviderRequest) =>
+  post<ProviderDTO>(`/v1/admin/ai/providers`, data);
+
+export const updateProviderApi = (id: number, data: UpdateProviderRequest) =>
+  put<ProviderDTO>(`/v1/admin/ai/providers/${id}`, data);
+
+export const deleteProviderApi = (id: number) =>
+  del<null>(`/v1/admin/ai/providers/${id}`);
+
+export const testProviderConnectionApi = (id: number) =>
+  post<TestConnectionResult>(
+    `/v1/admin/ai/providers/${id}/test-connection`,
+    {},
+  );
 
 // ====== Audit Logs ======
 

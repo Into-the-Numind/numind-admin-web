@@ -132,6 +132,41 @@ export interface MatchResult {
   service_capabilities?: Record<string, unknown>;
 }
 
+// ====== AI Provider ======
+
+export interface ProviderDTO {
+  id: number;
+  name: string;
+  display_name: string;
+  base_url: string;
+  api_key: string; // always MaskedAPIKey output, e.g. "****abcd"
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateProviderRequest {
+  name: string;
+  display_name: string;
+  base_url: string;
+  api_key: string;
+  is_active?: boolean;
+}
+
+export interface UpdateProviderRequest {
+  display_name?: string;
+  base_url?: string;
+  api_key?: string; // null/empty = preserve existing
+  is_active?: boolean;
+}
+
+export interface TestConnectionResult {
+  success: boolean;
+  latency_ms?: number;
+  error?: string;
+  http_status?: number;
+}
+
 // ====== Audit Log ======
 
 export interface AuditLogDiff {

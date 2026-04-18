@@ -122,6 +122,24 @@ const router = createRouter({
           component: () => import("@/views/AIService/AuditLogs.vue"),
           meta: { title: "AI 审计日志" },
         },
+        {
+          path: "ai-providers",
+          name: "AIProvidersList",
+          component: () => import("@/views/AIService/ProvidersList.vue"),
+          meta: { title: "AI 供应商管理" },
+        },
+        {
+          path: "ai-providers/new",
+          name: "AIProviderCreate",
+          component: () => import("@/views/AIService/ProviderEdit.vue"),
+          meta: { title: "新增 AI 供应商" },
+        },
+        {
+          path: "ai-providers/:id",
+          name: "AIProviderEdit",
+          component: () => import("@/views/AIService/ProviderEdit.vue"),
+          meta: { title: "编辑 AI 供应商" },
+        },
       ],
     },
     {
