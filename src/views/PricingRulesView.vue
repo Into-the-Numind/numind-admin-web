@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
+import { useRoute } from "vue-router";
 import {
   getPricingRulesApi,
   createPricingRuleApi,
@@ -12,6 +13,8 @@ import {
   type PricingRuleTier,
   type TierInput,
 } from "@/api/billing";
+import { listServicesApi } from "@/api/ai";
+import type { AIService } from "@/types/ai";
 import DataTable, { type Column } from "@/components/common/DataTable.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
@@ -28,6 +31,7 @@ import {
 } from "@/constants/billingMaps";
 
 const toast = useToast();
+const route = useRoute();
 const rules = ref<PricingRule[]>([]);
 const total = ref(0);
 const page = ref(1);
@@ -35,6 +39,71 @@ const pageSize = 20;
 const loading = ref(false);
 const error = ref("");
 const processing = ref(false);
+
+// ====== AI Services for association display & filter ======
+const allServices = ref<AIService[]>([]);
+
+/**
+ * Coarse service_type mapping:
+ *   ai_service.service_type is coarse: "llm" | "ocr" | "asr" | "embedding" | "rerank"
+ *   pricing_rule.service_type is fine: "llm_chat" | "llm_vision" | "embedding" | "rerank" | "ocr" | "asr" | ...
+ * For matching we map rule.service_type → coarse type, then match ai_service.service_type + model_key == rule.model
+ * Provider matching is approximate (best-effort, no route data in list response).
+ */
+function ruleCoarseType(ruleServiceType: string): string {
+  if (ruleServiceType === "llm_chat" || ruleServiceType === "llm_vision")
+    return "llm";
+  // For others (ocr, asr, embedding, rerank, etc.) treat as 1:1
+  return ruleServiceType;
+}
+
+function getMatchedServices(rule: PricingRule): AIService[] {
+  const coarse = ruleCoarseType(rule.service_type);
+  return allServices.value.filter((svc) => {
+    if (svc.service_type !== coarse) return false;
+    // model_key match (empty rule.model = wildcard/default rule, matches all services of that type)
+    if (!rule.model) return true;
+    return svc.model_key === rule.model;
+  });
+}
+
+// Filter: selected service id (0 = all)
+const selectedServiceId = ref<number>(0);
+
+const serviceFilterOptions = computed(() => {
+  const opts: { label: string; value: number }[] = [
+    { label: "全部 AI 服务", value: 0 },
+  ];
+  for (const svc of allServices.value) {
+    opts.push({ label: svc.display_name, value: svc.id });
+  }
+  return opts;
+});
+
+const displayedRules = computed(() => {
+  if (selectedServiceId.value === 0) return rules.value;
+  const target = allServices.value.find(
+    (s) => s.id === selectedServiceId.value,
+  );
+  if (!target) return rules.value;
+  return rules.value.filter((rule) => {
+    const matched = getMatchedServices(rule);
+    return matched.some((s) => s.id === selectedServiceId.value);
+  });
+});
+
+async function fetchServices() {
+  try {
+    const res = await listServicesApi({
+      page: 1,
+      page_size: 200,
+      status: "active",
+    });
+    allServices.value = res.list ?? [];
+  } catch {
+    // non-critical — association display degrades gracefully
+  }
+}
 
 // Modal
 const modalVisible = ref(false);
@@ -121,6 +190,7 @@ const columns: Column[] = [
     align: "right",
   },
   { key: "margin", title: "毛利率", width: "80px", align: "right" },
+  { key: "associated_services", title: "关联 AI 服务", width: "180px" },
   { key: "is_active", title: "状态", width: "70px" },
   { key: "actions", title: "操作", width: "100px" },
 ];
@@ -256,7 +326,17 @@ async function toggleActive(rule: PricingRule) {
 }
 
 watch(page, fetchRules);
-onMounted(fetchRules);
+onMounted(async () => {
+  await Promise.all([fetchRules(), fetchServices()]);
+  // Support ?service_id=X deep-link from ServiceEdit pricing rule card
+  const qsid = route.query.service_id;
+  if (qsid) {
+    const parsed = Number(qsid);
+    if (!Number.isNaN(parsed) && parsed > 0) {
+      selectedServiceId.value = parsed;
+    }
+  }
+});
 
 // 分段配置抽屉
 const tierDrawerVisible = ref(false);
@@ -323,17 +403,25 @@ async function saveTiers() {
     <div class="page-header">
       <p class="page-breadcrumb">Billing / Pricing Rules</p>
       <h1 class="page-title">定价管理</h1>
-      <AppButton variant="primary" @click="openCreate">
-        <Plus :size="16" />
-        新建规则
-      </AppButton>
+      <div class="page-header-actions">
+        <AppSelect
+          v-model="selectedServiceId"
+          :options="serviceFilterOptions"
+          placeholder="按 AI 服务筛选"
+          size="sm"
+        />
+        <AppButton variant="primary" @click="openCreate">
+          <Plus :size="16" />
+          新建规则
+        </AppButton>
+      </div>
     </div>
 
     <div v-if="error" class="error-alert">{{ error }}</div>
 
     <DataTable
       :columns="columns"
-      :data="rules"
+      :data="displayedRules"
       :loading="loading"
       :total="total"
       :page="page"
@@ -399,6 +487,37 @@ async function saveTiers() {
         <span class="text-mono text-margin">{{
           ruleMargin(row as PricingRule)
         }}</span>
+      </template>
+
+      <template #cell-associated_services="{ row }">
+        <div class="assoc-services">
+          <template v-if="getMatchedServices(row as PricingRule).length === 0">
+            <span class="assoc-empty">— 无关联服务</span>
+          </template>
+          <template v-else>
+            <span
+              v-for="svc in getMatchedServices(row as PricingRule).slice(0, 3)"
+              :key="svc.id"
+              class="assoc-badge"
+              :title="svc.model_key"
+              >{{ svc.display_name }}</span
+            >
+            <span
+              v-if="getMatchedServices(row as PricingRule).length > 3"
+              class="assoc-more"
+              :title="
+                getMatchedServices(row as PricingRule)
+                  .slice(3)
+                  .map((s) => s.display_name)
+                  .join(', ')
+              "
+              >+{{
+                getMatchedServices(row as PricingRule).length - 3
+              }}
+              更多</span
+            >
+          </template>
+        </div>
       </template>
 
       <template #cell-is_active="{ row }">
@@ -795,6 +914,57 @@ async function saveTiers() {
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.page-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* Associated services column */
+.assoc-services {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  align-items: center;
+}
+
+.assoc-empty {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary, var(--text-secondary));
+  font-style: italic;
+}
+
+.assoc-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  background: var(
+    --primary-container,
+    color-mix(in srgb, var(--primary) 12%, transparent)
+  );
+  color: var(--on-primary-container, var(--primary));
+  white-space: nowrap;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: default;
+}
+
+.assoc-more {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  background: var(--surface-low);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  cursor: default;
 }
 
 .label-badge {
