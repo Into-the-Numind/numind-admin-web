@@ -75,7 +75,14 @@ function validateField(field: string) {
     }
   }
   if (field === "api_key" && isNew.value) {
-    fieldErrors.value.api_key = v.api_key.trim() ? "" : "API Key 不能为空";
+    const keyTrim = v.api_key.trim();
+    if (!keyTrim) {
+      fieldErrors.value.api_key = "API Key 不能为空";
+    } else if (keyTrim.length < 8) {
+      fieldErrors.value.api_key = "API Key 至少 8 字符";
+    } else {
+      fieldErrors.value.api_key = "";
+    }
   }
 }
 
