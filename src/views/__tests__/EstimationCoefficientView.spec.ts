@@ -32,6 +32,12 @@ vi.mock("@/api/coefficients", () => {
   };
   return {
     listCoefficients: vi.fn(async () => ({ list: [sampleItem], total: 1 })),
+    listCoefficientHistory: vi.fn(async () => ({
+      list: [
+        { ...sampleItem, version: 2, is_active: true, change_reason: "bump" },
+        { ...sampleItem, version: 1, is_active: false, change_reason: "init" },
+      ],
+    })),
     createCoefficient: vi.fn(async () => ({ ...sampleItem, id: 99 })),
     updateCoefficient: vi.fn(async () => ({ ...sampleItem, version: 2 })),
     deleteCoefficient: vi.fn(async () => undefined),
@@ -200,5 +206,39 @@ describe("EstimationCoefficientView — list + CRUD", () => {
     const calls = toastSpy.error.mock.calls as unknown as string[][];
     const msg = calls.map((c) => String(c[0])).join(" | ");
     expect(msg).toContain("系数更新繁忙");
+  });
+});
+
+describe("EstimationCoefficientView — F.2 history drawer", () => {
+  it("opens drawer and loads history when row history button clicked", async () => {
+    const wrapper = await mountView();
+    const histBtn = wrapper.find('[data-test="row-history-1"]');
+    expect(histBtn.exists()).toBe(true);
+    await histBtn.trigger("click");
+    await flushPromises();
+    expect(coefApi.listCoefficientHistory).toHaveBeenCalledWith({
+      provider: "volc",
+      model: "glm-4",
+      operation: "sop_step",
+    });
+    const drawer = document.body.querySelector('[data-test="history-drawer"]');
+    expect(drawer).not.toBeNull();
+    const html = drawer!.innerHTML;
+    expect(html).toContain("bump"); // change_reason v2
+    expect(html).toContain("init"); // change_reason v1
+    expect(html).toContain("v2");
+    expect(html).toContain("v1");
+  });
+
+  it("drawer shows empty hint when no history", async () => {
+    (
+      coefApi.listCoefficientHistory as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({ list: [] });
+    const wrapper = await mountView();
+    await wrapper.find('[data-test="row-history-1"]').trigger("click");
+    await flushPromises();
+    const drawer = document.body.querySelector('[data-test="history-drawer"]');
+    expect(drawer).not.toBeNull();
+    expect(drawer!.innerHTML).toContain("暂无历史版本");
   });
 });

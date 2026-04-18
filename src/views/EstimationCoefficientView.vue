@@ -2,20 +2,23 @@
 /**
  * EstimationCoefficientView — R2 估算系数管理（管理端）
  *
- * Phase 1 / Track F Task F.1：
- *   - DataTable + CRUD：list with filters、新增 modal、编辑 modal 触发
- *     UpdateCoefficient + change_reason 必填、软删按钮
- *   - HTTP 503（Coefficient.Concurrent）→ toast "系数更新繁忙，请稍后重试"
+ * Phase 1 / Track F Tasks F.1 + F.2：
+ *   - F.1：DataTable + CRUD（list + filters、新增 modal、编辑 modal 触发
+ *     UpdateCoefficient + change_reason 必填、软删）、503 Coefficient.Concurrent
+ *     → toast "系数更新繁忙，请稍后重试"
+ *   - F.2：历史版本 side-drawer（GET /history 读全部 version，列 version /
+ *     is_active / values / change_reason / updated_by / updated_at）
  *
  * 后端契约冻结于 `@/api/coefficients`（Phase 0），本视图不改动契约。
  * request.ts 的响应拦截器在运行时返回 data.data，但 axios 类型签名
  * 仍为 `AxiosResponse<T>`，此处用 `as unknown as T` 断言以拿到运行时真实类型。
  *
- * spec §4.4.1 / plan Track F.1
+ * spec §4.4.1 / §4.4.2 / plan Track F.1 + F.2
  */
 import { ref, computed, onMounted } from "vue";
 import {
   listCoefficients,
+  listCoefficientHistory,
   createCoefficient,
   updateCoefficient,
   deleteCoefficient,
@@ -30,7 +33,7 @@ import ConfirmModal from "@/components/common/ConfirmModal.vue";
 import StatusBadge from "@/components/common/StatusBadge.vue";
 import { useToast } from "@/composables/useToast";
 import { formatDate } from "@/utils/format";
-import { Pencil, Plus, Trash2 } from "lucide-vue-next";
+import { History, Pencil, Plus, Trash2, X } from "lucide-vue-next";
 
 const toast = useToast();
 
@@ -79,6 +82,16 @@ const confirmVisible = ref(false);
 const pendingDeleteId = ref(0);
 const pendingDeleteLabel = ref("");
 
+// ---- History drawer (F.2) ----
+const historyVisible = ref(false);
+const historyLoading = ref(false);
+const historyItems = ref<EstimationCoefficient[]>([]);
+const historyContext = ref<{
+  provider: string;
+  model: string;
+  operation: string;
+} | null>(null);
+
 const activeStatusMap: Record<string, { label: string; color: string }> = {
   active: { label: "激活", color: "success" },
   inactive: { label: "历史", color: "gray" },
@@ -111,7 +124,7 @@ const columns: Column[] = [
   { key: "is_active", title: "状态", width: "80px" },
   { key: "updated_by", title: "更新人", width: "100px" },
   { key: "updated_at", title: "更新时间", width: "160px" },
-  { key: "actions", title: "操作", width: "160px" },
+  { key: "actions", title: "操作", width: "200px" },
 ];
 
 const rowKey = "id";
@@ -269,6 +282,33 @@ async function executeDelete() {
   }
 }
 
+/**
+ * F.2: 打开某行的历史版本 drawer。调 `GET .../history` 拉所有 version
+ * （含 is_active=0），展示在 side drawer。
+ */
+async function openHistory(row: EstimationCoefficient) {
+  historyContext.value = {
+    provider: row.provider,
+    model: row.model,
+    operation: row.operation,
+  };
+  historyVisible.value = true;
+  historyLoading.value = true;
+  historyItems.value = [];
+  try {
+    const res = (await listCoefficientHistory({
+      provider: row.provider,
+      model: row.model,
+      operation: row.operation,
+    })) as unknown as { list: EstimationCoefficient[] };
+    historyItems.value = res.list ?? [];
+  } catch (e) {
+    toast.error((e as Error).message || "加载历史版本失败");
+  } finally {
+    historyLoading.value = false;
+  }
+}
+
 onMounted(fetchList);
 </script>
 
@@ -380,6 +420,15 @@ onMounted(fetchList);
           >
             <Pencil :size="14" />
             编辑
+          </AppButton>
+          <AppButton
+            size="sm"
+            variant="ghost"
+            :data-test="`row-history-${(row as EstimationCoefficient).id}`"
+            @click.stop="openHistory(row as EstimationCoefficient)"
+          >
+            <History :size="14" />
+            历史
           </AppButton>
           <AppButton
             size="sm"
@@ -526,6 +575,74 @@ onMounted(fetchList);
       @cancel="confirmVisible = false"
       @confirm="executeDelete"
     />
+
+    <!-- History Drawer (F.2) -->
+    <Teleport to="body">
+      <Transition name="drawer">
+        <div
+          v-if="historyVisible"
+          class="drawer-overlay"
+          data-test="history-drawer"
+          @click.self="historyVisible = false"
+          @keydown.esc="historyVisible = false"
+        >
+          <aside class="drawer" role="dialog" aria-modal="true">
+            <div class="drawer-header">
+              <div>
+                <h3 class="drawer-title">历史版本</h3>
+                <p v-if="historyContext" class="drawer-subtitle">
+                  {{ historyContext.provider }} / {{ historyContext.model }} /
+                  {{ historyContext.operation }}
+                </p>
+              </div>
+              <button
+                type="button"
+                class="drawer-close"
+                aria-label="关闭"
+                @click="historyVisible = false"
+              >
+                <X :size="18" />
+              </button>
+            </div>
+            <div class="drawer-body">
+              <p v-if="historyLoading" class="empty-hint">加载中...</p>
+              <table v-else-if="historyItems.length" class="inner-table">
+                <thead>
+                  <tr>
+                    <th>版本</th>
+                    <th>状态</th>
+                    <th>字符→Token</th>
+                    <th>Comp/Prompt</th>
+                    <th>Safety(%)</th>
+                    <th>变更理由</th>
+                    <th>更新人</th>
+                    <th>更新时间</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="h in historyItems" :key="h.id">
+                    <td>v{{ h.version }}</td>
+                    <td>
+                      <StatusBadge
+                        :status="h.is_active ? 'active' : 'inactive'"
+                        :map="activeStatusMap"
+                      />
+                    </td>
+                    <td>{{ h.char_to_token_ratio }}</td>
+                    <td>{{ h.completion_prompt_ratio }}</td>
+                    <td>{{ h.safety_buffer_pct }}</td>
+                    <td>{{ h.change_reason || "-" }}</td>
+                    <td>{{ h.updated_by || "-" }}</td>
+                    <td class="text-muted">{{ formatDate(h.updated_at) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p v-else class="empty-hint">暂无历史版本</p>
+            </div>
+          </aside>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -607,5 +724,114 @@ onMounted(fetchList);
 
 .form-group--full {
   grid-column: span 2;
+}
+
+/* ---- History drawer (F.2) ---- */
+.drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  justify-content: flex-end;
+  z-index: 1000;
+}
+
+.drawer {
+  width: min(780px, 95vw);
+  height: 100vh;
+  background: var(--surface-lowest);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.drawer-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--outline-variant);
+}
+
+.drawer-title {
+  font-family: var(--font-headline);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--on-surface);
+  margin: 0 0 var(--space-1);
+}
+
+.drawer-subtitle {
+  font-size: var(--text-xs);
+  color: var(--on-surface-variant);
+  margin: 0;
+}
+
+.drawer-close {
+  background: transparent;
+  border: none;
+  color: var(--on-surface-variant);
+  cursor: pointer;
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+}
+
+.drawer-close:hover {
+  background: var(--surface-high);
+}
+
+.drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-4) var(--space-5);
+}
+
+.inner-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.inner-table th {
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--outline-variant);
+  color: var(--on-surface-variant);
+  font-family: var(--font-label);
+  font-weight: 700;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.inner-table td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--outline-variant);
+  color: var(--on-surface);
+}
+
+.empty-hint {
+  color: var(--on-surface-variant);
+  font-size: var(--text-sm);
+  text-align: center;
+  padding: var(--space-4);
+}
+
+.drawer-enter-active,
+.drawer-leave-active {
+  transition: opacity 180ms ease;
+}
+.drawer-enter-active .drawer,
+.drawer-leave-active .drawer {
+  transition: transform 220ms ease;
+}
+.drawer-enter-from,
+.drawer-leave-to {
+  opacity: 0;
+}
+.drawer-enter-from .drawer,
+.drawer-leave-to .drawer {
+  transform: translateX(30px);
 }
 </style>
