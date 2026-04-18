@@ -38,7 +38,7 @@ const validating = ref<Record<number, boolean>>({});
 
 // Form state
 const selectedDefaultId = ref<number | null>(null);
-const selectedFallbackId = ref<number | null>(null);
+const selectedFallbackIds = ref<number[]>([]);
 const selectedAllowedIds = ref<number[]>([]);
 
 // Force override dialog
@@ -46,7 +46,7 @@ const forceDialogVisible = ref(false);
 const overrideReason = ref("");
 const incompatibleBindings = ref<string[]>([]);
 
-// Options for AppSelect
+// Options for AppSelect (default service only)
 const serviceSelectOptions = computed(() => [
   { label: "（无）", value: "" },
   ...services.value.map((svc) => ({
@@ -61,12 +61,9 @@ const defaultSelectValue = computed({
     selectedDefaultId.value = v ? Number(v) : null;
   },
 });
-const fallbackSelectValue = computed({
-  get: () => String(selectedFallbackId.value ?? ""),
-  set: (v: string | number | null) => {
-    selectedFallbackId.value = v ? Number(v) : null;
-  },
-});
+
+// All active services available for multi-select fallback picker
+const availableServices = computed(() => services.value);
 
 function isCompatible(serviceId: number): boolean {
   const result = validationMap.value[serviceId];
@@ -114,7 +111,9 @@ function collectIncompatible(): string[] {
     }
   };
   check(selectedDefaultId.value, "默认服务");
-  check(selectedFallbackId.value, "Fallback 服务");
+  selectedFallbackIds.value.forEach((id, i) =>
+    check(id, `Fallback 服务 #${i + 1}`),
+  );
   selectedAllowedIds.value.forEach((id) => check(id, `允许服务 #${id}`));
   return msgs;
 }
@@ -135,8 +134,7 @@ async function save(force = false) {
   try {
     const payload: UpdateTaskRequest = {
       default_service_id: selectedDefaultId.value,
-      fallback_service_ids:
-        selectedFallbackId.value != null ? [selectedFallbackId.value] : [],
+      fallback_service_ids: [...selectedFallbackIds.value],
       allowed_service_ids: [...selectedAllowedIds.value],
       reason: force ? overrideReason.value : undefined,
     };
@@ -179,23 +177,14 @@ async function loadData() {
     await nextTick();
 
     selectedDefaultId.value = taskRes.default_service_id ?? null;
-    // UI supports a single fallback by design; backend allows multiple. If the
-    // stored list has >1, we show the first and warn the user — saving would
-    // otherwise silently truncate the rest.
-    const fallbacks = taskRes.fallbacks ?? [];
-    selectedFallbackId.value = fallbacks.length > 0 ? fallbacks[0].id : null;
-    if (fallbacks.length > 1) {
-      toast.error(
-        `后端记录了 ${fallbacks.length} 个 fallback，此页面仅能编辑第一个；保存将丢弃其余`,
-      );
-    }
+    selectedFallbackIds.value = (taskRes.fallbacks ?? []).map((s) => s.id);
     selectedAllowedIds.value = (taskRes.allowed ?? []).map((s) => s.id);
 
     await nextTick();
 
     const toValidate = [
       selectedDefaultId.value,
-      selectedFallbackId.value,
+      ...selectedFallbackIds.value,
       ...selectedAllowedIds.value,
     ].filter((id): id is number => !!id);
     await Promise.all(toValidate.map(validateService));
@@ -309,21 +298,38 @@ onMounted(loadData);
           </div>
         </div>
 
-        <!-- Fallback service -->
-        <div class="binding-row">
-          <label class="binding-label">Fallback 服务</label>
+        <!-- Fallback services (multi-select) -->
+        <div class="binding-row binding-row--top">
+          <label class="binding-label">备用服务</label>
           <div class="binding-control">
-            <AppSelect
-              v-model="fallbackSelectValue"
-              :options="serviceSelectOptions"
-            />
-            <div
-              v-if="selectedFallbackId && !isCompatible(selectedFallbackId)"
-              class="compat-warning"
+            <label class="form-label">备用服务（可多选）</label>
+            <select
+              v-model="selectedFallbackIds"
+              multiple
+              :size="Math.min(8, availableServices.length)"
+              class="multi-select"
             >
-              <AlertTriangle :size="14" />
-              {{ incompatibleReason(selectedFallbackId) }}
-            </div>
+              <option
+                v-for="svc in availableServices"
+                :key="svc.id"
+                :value="svc.id"
+              >
+                {{ svc.display_name || svc.model_key }} ({{ svc.model_key }})
+              </option>
+            </select>
+            <p class="form-hint">按住 Ctrl/Cmd 多选。空选代表无备用服务</p>
+            <template
+              v-for="fbId in selectedFallbackIds"
+              :key="fbId"
+            >
+              <div
+                v-if="!isCompatible(fbId)"
+                class="compat-warning"
+              >
+                <AlertTriangle :size="14" />
+                {{ incompatibleReason(fbId) }}
+              </div>
+            </template>
           </div>
         </div>
 
@@ -650,5 +656,53 @@ onMounted(loadData);
 .reason-textarea:focus {
   outline: none;
   border-color: var(--primary);
+}
+
+.form-label {
+  font-family: var(--font-label);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--on-surface-variant);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--space-1);
+}
+
+.form-hint {
+  font-size: var(--text-xs);
+  color: var(--on-surface-variant);
+  margin-top: var(--space-1);
+}
+
+.multi-select {
+  width: 100%;
+  min-height: 96px; /* ~3-4 rows */
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-low);
+  color: var(--on-surface);
+  font-size: var(--text-sm);
+  font-family: inherit;
+  box-sizing: border-box;
+  transition: border-color var(--transition-fast);
+  appearance: auto;
+  cursor: pointer;
+}
+
+.multi-select:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.multi-select option {
+  padding: var(--space-1) var(--space-2);
+  color: var(--on-surface);
+  background: var(--surface-low);
+}
+
+.multi-select option:checked {
+  background: var(--primary-container, #eff6ff);
+  color: var(--on-surface);
 }
 </style>
