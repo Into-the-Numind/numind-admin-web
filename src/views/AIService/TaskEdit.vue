@@ -62,8 +62,6 @@ const defaultSelectValue = computed({
   },
 });
 
-// All active services available for multi-select fallback picker
-const availableServices = computed(() => services.value);
 
 function isCompatible(serviceId: number): boolean {
   const result = validationMap.value[serviceId];
@@ -300,17 +298,17 @@ onMounted(loadData);
 
         <!-- Fallback services (multi-select) -->
         <div class="binding-row binding-row--top">
-          <label class="binding-label">备用服务</label>
           <div class="binding-control">
-            <label class="form-label">备用服务（可多选）</label>
+            <label for="fallback-select" class="form-label">备用服务（可多选）</label>
             <select
+              id="fallback-select"
               v-model="selectedFallbackIds"
               multiple
-              :size="Math.min(8, availableServices.length)"
+              :size="Math.max(3, Math.min(8, services.length))"
               class="multi-select"
             >
               <option
-                v-for="svc in availableServices"
+                v-for="svc in services"
                 :key="svc.id"
                 :value="svc.id"
               >
@@ -567,7 +565,7 @@ onMounted(loadData);
 }
 
 .allowed-item--selected {
-  background: var(--primary-container, #eff6ff);
+  background: var(--primary-light);
   border-color: var(--primary);
 }
 
@@ -702,7 +700,7 @@ onMounted(loadData);
 }
 
 .multi-select option:checked {
-  background: var(--primary-container, #eff6ff);
+  background: var(--primary-light);
   color: var(--on-surface);
 }
 </style>
