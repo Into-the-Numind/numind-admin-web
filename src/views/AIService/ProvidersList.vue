@@ -208,6 +208,19 @@ onMounted(fetchProviders);
   flex-wrap: wrap;
 }
 
+.error-alert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--danger-light);
+  color: #991b1b;
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-4);
+  font-size: var(--text-sm);
+}
+
 .page-breadcrumb {
   width: 100%;
   font-size: var(--text-xs);

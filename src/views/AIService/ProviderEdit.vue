@@ -35,6 +35,7 @@ const maskedApiKey = ref("");
 // Reset Key inline state
 const showResetKey = ref(false);
 const resetKeyValue = ref("");
+const resetKeyError = ref("");
 
 interface ProviderForm {
   name: string;
@@ -138,6 +139,13 @@ async function save() {
       };
       // Only send api_key if user explicitly set a new one via reset
       if (showResetKey.value && resetKeyValue.value.trim()) {
+        if (resetKeyValue.value.trim().length < 8) {
+          resetKeyError.value = "API Key 至少 8 字符";
+          toast.error("请检查必填项");
+          saving.value = false;
+          return;
+        }
+        resetKeyError.value = "";
         payload.api_key = resetKeyValue.value.trim();
       }
       await updateProviderApi(providerId.value, payload);
@@ -174,6 +182,7 @@ function toggleResetKey() {
   showResetKey.value = !showResetKey.value;
   if (!showResetKey.value) {
     resetKeyValue.value = "";
+    resetKeyError.value = "";
   }
 }
 
@@ -263,6 +272,7 @@ onMounted(loadData);
             <label class="form-label">API Key *</label>
             <AppInput
               v-model="form.api_key"
+              type="password"
               placeholder="sk-..."
               @blur="validateField('api_key')"
             />
@@ -292,10 +302,14 @@ onMounted(loadData);
             <div v-if="showResetKey" class="reset-key-field">
               <AppInput
                 v-model="resetKeyValue"
+                type="password"
                 placeholder="输入新的 API Key"
                 class="reset-key-input"
               />
-              <p class="reset-key-desc">保存后新 Key 将替换当前值</p>
+              <p v-if="resetKeyError" class="field-error">
+                {{ resetKeyError }}
+              </p>
+              <p v-else class="reset-key-desc">保存后新 Key 将替换当前值</p>
             </div>
           </div>
 
