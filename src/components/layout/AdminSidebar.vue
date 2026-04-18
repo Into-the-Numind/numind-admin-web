@@ -21,6 +21,8 @@ import {
   ListChecks,
   ScrollText,
   Server,
+  Sigma,
+  Wrench,
 } from "lucide-vue-next";
 
 const props = defineProps<{ collapsed: boolean }>();
@@ -103,6 +105,20 @@ const navItems = [
     label: "AI 供应商",
     icon: Server,
     path: "/ai-providers",
+  },
+  // F.4: R2 estimation coefficient management (under AI Services group)
+  {
+    name: "EstimationCoefficients",
+    label: "估算系数",
+    icon: Sigma,
+    path: "/ai-services/coefficients",
+  },
+  // F.4: one-off migration tools (system tools group)
+  {
+    name: "Migrations",
+    label: "迁移工具",
+    icon: Wrench,
+    path: "/system-tools/migrations",
   },
 ];
 
