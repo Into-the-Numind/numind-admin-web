@@ -38,6 +38,33 @@ export interface AIServiceRoute {
   is_active: boolean;
 }
 
+// RouteDTO is the shape returned by route CRUD endpoints (Wave 1 backend).
+// Pricing fields are intentionally absent — they live in pricing_rule.
+export interface RouteDTO {
+  id: number;
+  service_id: number;
+  provider_id: number;
+  provider_name: string;
+  provider_model_id: string;
+  priority: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateRouteRequest {
+  provider_id: number;
+  provider_model_id: string;
+  priority?: number;
+  is_active?: boolean;
+}
+
+export interface UpdateRouteRequest {
+  provider_model_id?: string;
+  priority?: number;
+  is_active?: boolean;
+}
+
 export interface AIService {
   id: number;
   model_key: string;

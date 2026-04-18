@@ -15,6 +15,9 @@ import type {
   CreateProviderRequest,
   UpdateProviderRequest,
   TestConnectionResult,
+  RouteDTO,
+  CreateRouteRequest,
+  UpdateRouteRequest,
 } from "@/types/ai";
 
 // ====== AI Services ======
@@ -72,7 +75,25 @@ export const validateAgainstApi = (taskKey: string, serviceId: number) =>
 export const getCapabilitySchemaApi = () =>
   get<CapabilitySchemaMap>("/v1/admin/ai/capability-schema");
 
-// ====== Audit Logs ======
+// ====== Routes ======
+
+export const createRouteApi = (serviceId: number, data: CreateRouteRequest) =>
+  post<{ route: RouteDTO; warnings?: string[] }>(
+    `/v1/admin/ai/services/${serviceId}/routes`,
+    data,
+  );
+
+export const updateRouteApi = (routeId: number, data: UpdateRouteRequest) =>
+  put<{ route: RouteDTO; warnings?: string[] }>(
+    `/v1/admin/ai/routes/${routeId}`,
+    data,
+  );
+
+export const deleteRouteApi = (routeId: number) =>
+  del<null>(`/v1/admin/ai/routes/${routeId}`);
+
+export const toggleRouteApi = (routeId: number) =>
+  post<{ route: RouteDTO }>(`/v1/admin/ai/routes/${routeId}/toggle`, {});
 
 // ====== AI Providers ======
 

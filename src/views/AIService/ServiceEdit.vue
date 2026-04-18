@@ -6,20 +6,37 @@ import {
   createServiceApi,
   updateServiceApi,
   getCapabilitySchemaApi,
+  createRouteApi,
+  updateRouteApi,
+  deleteRouteApi,
+  toggleRouteApi,
+  listProvidersApi,
 } from "@/api/ai";
+import type { ProviderDTO } from "@/types/ai";
+import { getPricingRulesApi, type PricingRule } from "@/api/billing";
 import type {
   AIServiceDetail,
   AIServiceRoute,
+  RouteDTO,
   CapabilityField,
   CapabilitySchemaMap,
   CreateServiceRequest,
   UpdateServiceRequest,
+  CreateRouteRequest,
+  UpdateRouteRequest,
 } from "@/types/ai";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
+import ConfirmModal from "@/components/common/ConfirmModal.vue";
 import { useToast } from "@/composables/useToast";
-import { ArrowLeft } from "lucide-vue-next";
+import {
+  ArrowLeft,
+  Plus,
+  Trash2,
+  RefreshCw,
+  ExternalLink,
+} from "lucide-vue-next";
 
 const router = useRouter();
 const route = useRoute();
@@ -71,7 +88,65 @@ const currentFields = computed<CapabilityField[]>(
   () => capabilitySchemaMap.value[form.value.service_type]?.fields ?? [],
 );
 
-const routes = ref<AIServiceRoute[]>([]);
+// Routes — local working copy (RouteDTO from CRUD; AIServiceRoute from GET service detail)
+const routes = ref<(AIServiceRoute | RouteDTO)[]>([]);
+// Track per-route saving state
+const routeSaving = ref<Record<number, boolean>>({});
+
+// Route editing: each row can be in "editing" mode
+interface RouteEditState {
+  provider_model_id: string;
+  priority: string;
+}
+const routeEditState = ref<Record<number, RouteEditState>>({});
+const routeEditing = ref<Set<number>>(new Set());
+
+// Add route modal
+const addRouteVisible = ref(false);
+const addRouteForm = ref<{
+  provider_id: number | null;
+  provider_model_id: string;
+  priority: string;
+  is_active: boolean;
+}>({
+  provider_id: null,
+  provider_model_id: "",
+  priority: "0",
+  is_active: true,
+});
+const addRouteErrors = ref<Record<string, string>>({});
+const addRouteSaving = ref(false);
+
+// Delete confirm
+const deleteConfirmVisible = ref(false);
+const deleteTargetId = ref<number | null>(null);
+const deleteInProgress = ref(false);
+
+// Providers
+const providers = ref<ProviderDTO[]>([]);
+const providerOptions = computed(() =>
+  providers.value.map((p) => ({
+    label: p.display_name || p.name,
+    value: p.id,
+  })),
+);
+
+// Pricing rules
+const pricingRules = ref<PricingRule[]>([]);
+const pricingLoading = ref(false);
+// Map: routeId -> matched PricingRule[]
+const routePricingMap = computed(() => {
+  const map: Record<number, PricingRule[]> = {};
+  for (const r of routes.value) {
+    const matched = pricingRules.value.filter(
+      (pr) =>
+        pr.provider === (r as RouteDTO).provider_name &&
+        (pr.model === form.value.model_key || pr.model === r.provider_model_id),
+    );
+    map[r.id] = matched;
+  }
+  return map;
+});
 
 const serviceTypeOptions = [
   { label: "LLM", value: "llm" },
@@ -99,8 +174,6 @@ function setCapValue(name: string, value: unknown) {
 function toggleEnumMember(field: CapabilityField, enumValue: string) {
   const cur = (getCapValue(field.name) as string[] | undefined) ?? [];
   const enumSet = new Set(field.enum_values ?? []);
-  // Preserve values that are not in EnumValues so schema evolution (or a stored
-  // value the UI doesn't render as a checkbox) doesn't get silently dropped.
   const extras = cur.filter((v) => typeof v === "string" && !enumSet.has(v));
   const enumMembers = cur.filter(
     (v) => typeof v === "string" && enumSet.has(v),
@@ -212,6 +285,19 @@ function applyService(s: AIServiceDetail) {
   routes.value = s.routes ?? [];
 }
 
+async function loadPricingRules() {
+  if (isNew.value || routes.value.length === 0) return;
+  pricingLoading.value = true;
+  try {
+    const res = await getPricingRulesApi({ offset: 0, limit: 200 });
+    pricingRules.value = res.rules ?? [];
+  } catch {
+    // pricing rules are informational; don't block the page on failure
+  } finally {
+    pricingLoading.value = false;
+  }
+}
+
 async function loadData() {
   loading.value = true;
   error.value = "";
@@ -220,8 +306,16 @@ async function loadData() {
     capabilitySchemaMap.value = schemaRes ?? {};
 
     if (!isNew.value) {
-      const svc = await getServiceApi(serviceId.value);
+      const [svc, provRes] = await Promise.all([
+        getServiceApi(serviceId.value),
+        listProvidersApi().catch(() => ({
+          list: [] as ProviderDTO[],
+          total: 0,
+        })),
+      ]);
       applyService(svc);
+      providers.value = provRes.list ?? [];
+      await loadPricingRules();
     }
   } catch (e) {
     error.value = (e as Error).message || "加载失败";
@@ -279,6 +373,174 @@ async function save() {
   } finally {
     saving.value = false;
   }
+}
+
+// ====== Route editing ======
+
+function startEditRoute(r: AIServiceRoute | RouteDTO) {
+  routeEditState.value[r.id] = {
+    provider_model_id: r.provider_model_id,
+    priority: String(r.priority),
+  };
+  routeEditing.value = new Set([...routeEditing.value, r.id]);
+}
+
+function cancelEditRoute(id: number) {
+  routeEditing.value = new Set([...routeEditing.value].filter((x) => x !== id));
+  delete routeEditState.value[id];
+}
+
+async function saveRoute(r: AIServiceRoute | RouteDTO) {
+  const state = routeEditState.value[r.id];
+  if (!state) return;
+  const priority = Number(state.priority);
+  if (Number.isNaN(priority)) {
+    toast.error("优先级必须是数字");
+    return;
+  }
+  routeSaving.value[r.id] = true;
+  try {
+    const payload: UpdateRouteRequest = {
+      provider_model_id: state.provider_model_id,
+      priority,
+    };
+    const res = await updateRouteApi(r.id, payload);
+    // Update local state
+    const idx = routes.value.findIndex((x) => x.id === r.id);
+    if (idx > -1) {
+      routes.value[idx] = { ...routes.value[idx], ...res.route };
+    }
+    cancelEditRoute(r.id);
+    if (res.warnings && res.warnings.length > 0) {
+      toast.info(`路由已保存（提示：${res.warnings.join("；")}）`);
+    } else {
+      toast.success("路由已更新");
+    }
+  } catch (e) {
+    toast.error((e as Error).message || "保存路由失败");
+  } finally {
+    routeSaving.value[r.id] = false;
+  }
+}
+
+async function toggleRoute(r: AIServiceRoute | RouteDTO) {
+  routeSaving.value[r.id] = true;
+  try {
+    const res = await toggleRouteApi(r.id);
+    const idx = routes.value.findIndex((x) => x.id === r.id);
+    if (idx > -1) {
+      routes.value[idx] = { ...routes.value[idx], ...res.route };
+    }
+    toast.success(res.route.is_active ? "路由已启用" : "路由已禁用");
+  } catch (e) {
+    toast.error((e as Error).message || "操作失败");
+  } finally {
+    routeSaving.value[r.id] = false;
+  }
+}
+
+function promptDelete(id: number) {
+  deleteTargetId.value = id;
+  deleteConfirmVisible.value = true;
+}
+
+async function confirmDelete() {
+  if (deleteTargetId.value == null) return;
+  const id = deleteTargetId.value;
+  deleteInProgress.value = true;
+  try {
+    await deleteRouteApi(id);
+    routes.value = routes.value.filter((r) => r.id !== id);
+    cancelEditRoute(id);
+    toast.success("路由已删除");
+  } catch (e) {
+    toast.error((e as Error).message || "删除失败");
+  } finally {
+    deleteInProgress.value = false;
+    deleteConfirmVisible.value = false;
+    deleteTargetId.value = null;
+  }
+}
+
+// ====== Add route ======
+
+function openAddRoute() {
+  addRouteForm.value = {
+    provider_id: providers.value[0]?.id ?? null,
+    provider_model_id: "",
+    priority: "0",
+    is_active: true,
+  };
+  addRouteErrors.value = {};
+  addRouteVisible.value = true;
+}
+
+function validateAddRoute(): boolean {
+  addRouteErrors.value = {};
+  if (!addRouteForm.value.provider_id) {
+    addRouteErrors.value.provider_id = "请选择供应商";
+  }
+  if (!addRouteForm.value.provider_model_id.trim()) {
+    addRouteErrors.value.provider_model_id = "模型 ID 不能为空";
+  }
+  const p = Number(addRouteForm.value.priority);
+  if (Number.isNaN(p)) {
+    addRouteErrors.value.priority = "优先级必须是数字";
+  }
+  return Object.keys(addRouteErrors.value).length === 0;
+}
+
+async function submitAddRoute() {
+  if (!validateAddRoute()) return;
+  if (addRouteSaving.value) return;
+  addRouteSaving.value = true;
+  try {
+    const payload: CreateRouteRequest = {
+      provider_id: addRouteForm.value.provider_id!,
+      provider_model_id: addRouteForm.value.provider_model_id.trim(),
+      priority: Number(addRouteForm.value.priority),
+      is_active: addRouteForm.value.is_active,
+    };
+    const res = await createRouteApi(serviceId.value, payload);
+    routes.value = [...routes.value, res.route as unknown as AIServiceRoute];
+    addRouteVisible.value = false;
+    if (res.warnings && res.warnings.length > 0) {
+      toast.info(`路由已创建（提示：${res.warnings.join("；")}）`);
+    } else {
+      toast.success("路由已创建");
+    }
+    await loadPricingRules();
+  } catch (e) {
+    toast.error((e as Error).message || "创建路由失败");
+  } finally {
+    addRouteSaving.value = false;
+  }
+}
+
+// ====== Pricing helpers ======
+
+function formatPrice(rule: PricingRule): string {
+  if (rule.price_per_call && rule.price_per_call > 0) {
+    return `¥${rule.price_per_call} / 次`;
+  }
+  const inp = rule.input_price_per_mtok ?? 0;
+  const out = rule.output_price_per_mtok ?? 0;
+  if (inp > 0 || out > 0) {
+    return `输入 ¥${inp} / 输出 ¥${out} (per Mtok)`;
+  }
+  if (rule.price_per_gb && rule.price_per_gb > 0) {
+    return `¥${rule.price_per_gb} / GB`;
+  }
+  return "—";
+}
+
+function hasTiered(rule: PricingRule): boolean {
+  // We don't have tier count in PricingRule directly; treat tiered as rule with
+  // both sell and cost token prices set (heuristic). The admin can always
+  // navigate to PricingRulesView for full detail.
+  return (
+    rule.sell_input_price_per_mtok > 0 || rule.sell_output_price_per_mtok > 0
+  );
 }
 
 watch(() => route.params.id, loadData);
@@ -554,40 +816,276 @@ onMounted(loadData);
         </div>
       </section>
 
-      <!-- Routes (read-only) -->
+      <!-- Routes (editable) -->
       <section v-if="!isNew" class="form-section">
-        <h2 class="section-title">路由配置（只读）</h2>
-        <p class="section-desc">
-          路由（provider / 定价）请在「LLM 供应商」页面维护。
-        </p>
+        <div class="section-header">
+          <div>
+            <h2 class="section-title">路由配置</h2>
+            <p class="section-desc">
+              管理此服务的供应商路由。至少保留一条激活路由。
+            </p>
+          </div>
+          <AppButton variant="secondary" size="sm" @click="openAddRoute">
+            <Plus :size="14" />
+            新增路由
+          </AppButton>
+        </div>
+
         <div v-if="routes.length === 0" class="empty-hint">暂无路由</div>
-        <div v-else class="routes-list">
-          <div v-for="r in routes" :key="r.id" class="route-row">
+        <div v-else class="routes-table">
+          <!-- Header -->
+          <div class="route-header">
+            <span>供应商</span>
+            <span>模型 ID</span>
+            <span>优先级</span>
+            <span>状态</span>
+            <span>操作</span>
+          </div>
+          <!-- Rows -->
+          <div
+            v-for="r in routes"
+            :key="r.id"
+            class="route-row"
+            :class="{ 'route-row--editing': routeEditing.has(r.id) }"
+          >
             <span class="route-provider">{{ r.provider_name }}</span>
-            <span class="route-model">{{ r.provider_model_id }}</span>
-            <span class="route-priority">优先级 {{ r.priority }}</span>
-            <span class="route-pricing">
-              <template v-if="r.pricing_unit === 'per_call'">
-                ¥{{ r.price_per_call ?? 0 }} / 次
-              </template>
-              <template v-else-if="r.pricing_unit === 'per_second'">
-                ¥{{ r.price_per_second ?? 0 }} / 秒
+
+            <!-- Model ID: editable when in edit mode -->
+            <span v-if="!routeEditing.has(r.id)" class="route-model">
+              {{ r.provider_model_id }}
+            </span>
+            <AppInput
+              v-else
+              v-model="routeEditState[r.id].provider_model_id"
+              size="sm"
+              placeholder="provider model id"
+              class="route-input"
+            />
+
+            <!-- Priority: editable when in edit mode -->
+            <span v-if="!routeEditing.has(r.id)" class="route-priority">
+              {{ r.priority }}
+            </span>
+            <AppInput
+              v-else
+              v-model="routeEditState[r.id].priority"
+              type="number"
+              size="sm"
+              placeholder="0"
+              class="route-input route-input--sm"
+            />
+
+            <!-- Status toggle -->
+            <span class="route-status">
+              <button
+                class="toggle-btn"
+                :class="{ 'toggle-btn--active': r.is_active }"
+                :disabled="!!routeSaving[r.id]"
+                :title="r.is_active ? '点击禁用' : '点击启用'"
+                @click="toggleRoute(r)"
+              >
+                {{ r.is_active ? "启用" : "禁用" }}
+              </button>
+            </span>
+
+            <!-- Actions -->
+            <span class="route-actions">
+              <template v-if="!routeEditing.has(r.id)">
+                <AppButton
+                  variant="ghost"
+                  size="sm"
+                  :disabled="!!routeSaving[r.id]"
+                  @click="startEditRoute(r)"
+                >
+                  编辑
+                </AppButton>
+                <AppButton
+                  variant="ghost"
+                  size="sm"
+                  class="btn-danger"
+                  :disabled="!!routeSaving[r.id]"
+                  @click="promptDelete(r.id)"
+                >
+                  <Trash2 :size="14" />
+                </AppButton>
               </template>
               <template v-else>
-                ¥{{ r.input_price_per_mtok }} /
-                {{ r.output_price_per_mtok }} /Mtok
+                <AppButton
+                  variant="primary"
+                  size="sm"
+                  :loading="!!routeSaving[r.id]"
+                  @click="saveRoute(r)"
+                >
+                  保存
+                </AppButton>
+                <AppButton
+                  variant="ghost"
+                  size="sm"
+                  @click="cancelEditRoute(r.id)"
+                >
+                  取消
+                </AppButton>
               </template>
-            </span>
-            <span
-              class="route-status"
-              :class="{ 'route-status--off': !r.is_active }"
-            >
-              {{ r.is_active ? "启用" : "禁用" }}
             </span>
           </div>
         </div>
       </section>
+
+      <!-- Pricing Rules Card -->
+      <section v-if="!isNew && routes.length > 0" class="form-section">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title">计费规则</h2>
+            <p class="section-desc">
+              各路由对应的计费规则（来自 pricing_rule 表，按供应商 +
+              模型匹配）。
+            </p>
+          </div>
+          <AppButton
+            variant="ghost"
+            size="sm"
+            :loading="pricingLoading"
+            @click="loadPricingRules"
+          >
+            <RefreshCw :size="14" />
+            刷新
+          </AppButton>
+        </div>
+
+        <div v-if="pricingLoading" class="pricing-skeleton" />
+        <div v-else class="pricing-list">
+          <div v-for="r in routes" :key="r.id" class="pricing-row">
+            <div class="pricing-row__route">
+              <span class="route-provider">{{ r.provider_name }}</span>
+              <span class="route-model">{{ r.provider_model_id }}</span>
+            </div>
+            <div
+              v-if="routePricingMap[r.id] && routePricingMap[r.id].length > 0"
+              class="pricing-row__rules"
+            >
+              <div
+                v-for="pr in routePricingMap[r.id]"
+                :key="pr.id"
+                class="pricing-rule-item"
+              >
+                <span
+                  class="pricing-badge"
+                  :class="
+                    hasTiered(pr)
+                      ? 'pricing-badge--tiered'
+                      : 'pricing-badge--flat'
+                  "
+                >
+                  {{ hasTiered(pr) ? "tiered" : "flat" }}
+                </span>
+                <span class="pricing-summary">{{ formatPrice(pr) }}</span>
+                <span class="pricing-type">{{ pr.service_type }}</span>
+              </div>
+            </div>
+            <div v-else class="pricing-row__missing">
+              <span class="pricing-warn">未找到计费规则 — 调用将不扣费</span>
+              <a
+                class="pricing-link"
+                @click.prevent="router.push('/billing/pricing')"
+              >
+                编辑计费规则 <ExternalLink :size="12" />
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
     </template>
+
+    <!-- Add Route Modal -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div
+          v-if="addRouteVisible"
+          class="modal-overlay"
+          @click.self="addRouteVisible = false"
+        >
+          <div class="modal-card" role="dialog" aria-modal="true">
+            <h3 class="modal-title">新增路由</h3>
+            <div class="modal-form">
+              <div class="form-group">
+                <label class="form-label">供应商 *</label>
+                <AppSelect
+                  :model-value="addRouteForm.provider_id ?? ''"
+                  :options="providerOptions"
+                  placeholder="选择供应商"
+                  @update:model-value="
+                    (v: string | number) => {
+                      addRouteForm.provider_id = v === '' ? null : Number(v);
+                    }
+                  "
+                />
+                <p v-if="addRouteErrors.provider_id" class="field-error">
+                  {{ addRouteErrors.provider_id }}
+                </p>
+              </div>
+              <div class="form-group">
+                <label class="form-label">模型 ID (provider_model_id) *</label>
+                <AppInput
+                  v-model="addRouteForm.provider_model_id"
+                  placeholder="如 qwen-turbo"
+                  @blur="validateAddRoute()"
+                />
+                <p v-if="addRouteErrors.provider_model_id" class="field-error">
+                  {{ addRouteErrors.provider_model_id }}
+                </p>
+              </div>
+              <div class="form-group">
+                <label class="form-label">优先级</label>
+                <AppInput
+                  v-model="addRouteForm.priority"
+                  type="number"
+                  placeholder="0"
+                />
+                <p v-if="addRouteErrors.priority" class="field-error">
+                  {{ addRouteErrors.priority }}
+                </p>
+              </div>
+              <label class="form-label checkbox-label">
+                <input
+                  v-model="addRouteForm.is_active"
+                  type="checkbox"
+                  class="checkbox"
+                />
+                启用此路由
+              </label>
+            </div>
+            <div class="modal-actions">
+              <AppButton
+                variant="ghost"
+                size="sm"
+                @click="addRouteVisible = false"
+              >
+                取消
+              </AppButton>
+              <AppButton
+                variant="primary"
+                size="sm"
+                :loading="addRouteSaving"
+                @click="submitAddRoute"
+              >
+                创建
+              </AppButton>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <!-- Delete Confirm Modal -->
+    <ConfirmModal
+      :visible="deleteConfirmVisible"
+      title="确认删除路由"
+      message="确定删除此路由？如果这是最后一条激活路由，操作将被拒绝。"
+      confirm-text="删除"
+      :danger="true"
+      @confirm="confirmDelete"
+      @cancel="deleteConfirmVisible = false"
+    />
   </div>
 </template>
 
@@ -648,6 +1146,14 @@ onMounted(loadData);
   margin-bottom: var(--space-4);
 }
 
+.section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: var(--space-4);
+  gap: var(--space-4);
+}
+
 .section-title {
   font-size: var(--text-base);
   font-weight: 600;
@@ -658,7 +1164,7 @@ onMounted(loadData);
 .section-desc {
   font-size: var(--text-sm);
   color: var(--text-secondary);
-  margin-bottom: var(--space-4);
+  margin-bottom: 0;
 }
 
 .form-grid {
@@ -792,21 +1298,47 @@ onMounted(loadData);
   text-align: center;
 }
 
-.routes-list {
+/* Routes table */
+.routes-table {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.route-header {
+  display: grid;
+  grid-template-columns: 1fr 2fr 80px 80px 160px;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+  background: var(--gray-50, var(--surface-low));
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .route-row {
   display: grid;
-  grid-template-columns: 1fr 1.5fr auto 1.5fr auto;
+  grid-template-columns: 1fr 2fr 80px 80px 160px;
   gap: var(--space-3);
   align-items: center;
   padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-top: 1px solid var(--border);
   font-size: var(--text-sm);
+  transition: background var(--transition-fast);
+}
+
+.route-row:hover {
+  background: var(--surface-low, var(--gray-50));
+}
+
+.route-row--editing {
+  background: var(--primary-light, #eff6ff);
 }
 
 .route-provider {
@@ -817,21 +1349,223 @@ onMounted(loadData);
 .route-model {
   font-family: var(--font-mono);
   color: var(--text-secondary);
+  font-size: var(--text-xs);
 }
 
-.route-priority,
-.route-pricing {
+.route-priority {
   color: var(--text-secondary);
   font-size: var(--text-xs);
+  text-align: center;
 }
 
 .route-status {
-  font-size: var(--text-xs);
-  font-weight: 600;
-  color: var(--success);
+  display: flex;
+  align-items: center;
 }
 
-.route-status--off {
+.toggle-btn {
+  padding: 2px 10px;
+  border-radius: var(--radius-full, 9999px);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--surface);
   color: var(--text-secondary);
+  transition: all var(--transition-fast);
+}
+
+.toggle-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.toggle-btn--active {
+  background: var(--success-light, #dcfce7);
+  color: #166534;
+  border-color: #86efac;
+}
+
+.route-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.route-input {
+  width: 100%;
+}
+
+.route-input--sm {
+  max-width: 72px;
+}
+
+.btn-danger {
+  color: var(--danger);
+}
+
+/* Pricing */
+.pricing-skeleton {
+  height: 80px;
+  background: linear-gradient(
+    90deg,
+    var(--gray-100) 25%,
+    var(--gray-200) 50%,
+    var(--gray-100) 75%
+  );
+  background-size: 200% 100%;
+  border-radius: var(--radius-md);
+  animation: shimmer 1.5s infinite;
+}
+
+.pricing-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.pricing-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.pricing-row__route {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 160px;
+}
+
+.pricing-row__rules {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  flex: 1;
+}
+
+.pricing-rule-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.pricing-badge {
+  padding: 2px 8px;
+  border-radius: var(--radius-full, 9999px);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.pricing-badge--flat {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.pricing-badge--tiered {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.pricing-summary {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text);
+}
+
+.pricing-type {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.pricing-row__missing {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex: 1;
+}
+
+.pricing-warn {
+  font-size: var(--text-sm);
+  color: var(--warning, #d97706);
+}
+
+.pricing-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--primary);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+/* Add route modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(2px);
+}
+
+.modal-card {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  width: 90%;
+  max-width: 480px;
+  box-shadow: var(--shadow-lg);
+}
+
+.modal-title {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: var(--space-4);
+}
+
+.modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.modal-enter-active,
+.modal-leave-active {
+  transition: opacity 200ms ease;
+}
+
+.modal-enter-active .modal-card,
+.modal-leave-active .modal-card {
+  transition: transform 200ms ease;
+}
+
+.modal-enter-from,
+.modal-leave-to {
+  opacity: 0;
+}
+
+.modal-enter-from .modal-card {
+  transform: scale(0.95);
+}
+
+.modal-leave-to .modal-card {
+  transform: scale(0.95);
 }
 </style>
