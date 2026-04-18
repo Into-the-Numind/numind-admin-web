@@ -50,15 +50,18 @@ const allServices = ref<AIService[]>([]);
  * For matching we map rule.service_type → coarse type, then match ai_service.service_type + model_key == rule.model
  * Provider matching is approximate (best-effort, no route data in list response).
  */
-function ruleCoarseType(ruleServiceType: string): string {
-  if (ruleServiceType === "llm_chat" || ruleServiceType === "llm_vision")
-    return "llm";
-  // For others (ocr, asr, embedding, rerank, etc.) treat as 1:1
-  return ruleServiceType;
+const FINE_TO_COARSE: Record<string, string> = {
+  llm_chat: "llm",
+  llm_vision: "llm",
+  // Add future fine types here; others map 1:1 via fallback.
+};
+
+function ruleCoarseType(rule: PricingRule): string {
+  return FINE_TO_COARSE[rule.service_type] ?? rule.service_type;
 }
 
 function getMatchedServices(rule: PricingRule): AIService[] {
-  const coarse = ruleCoarseType(rule.service_type);
+  const coarse = ruleCoarseType(rule);
   return allServices.value.filter((svc) => {
     if (svc.service_type !== coarse) return false;
     // model_key match (empty rule.model = wildcard/default rule, matches all services of that type)
@@ -90,6 +93,18 @@ const displayedRules = computed(() => {
     const matched = getMatchedServices(rule);
     return matched.some((s) => s.id === selectedServiceId.value);
   });
+});
+
+/**
+ * Pre-computed Map<ruleId, AIService[]> so the template never calls
+ * getMatchedServices() more than once per rule per render cycle.
+ */
+const matchedByRuleId = computed<Map<number, AIService[]>>(() => {
+  const map = new Map<number, AIService[]>();
+  for (const rule of rules.value) {
+    map.set(rule.id, getMatchedServices(rule));
+  }
+  return map;
 });
 
 async function fetchServices() {
@@ -404,12 +419,21 @@ async function saveTiers() {
       <p class="page-breadcrumb">Billing / Pricing Rules</p>
       <h1 class="page-title">定价管理</h1>
       <div class="page-header-actions">
-        <AppSelect
-          v-model="selectedServiceId"
-          :options="serviceFilterOptions"
-          placeholder="按 AI 服务筛选"
-          size="sm"
-        />
+        <div class="filter-group">
+          <label class="sr-only">按 AI 服务筛选</label>
+          <AppSelect
+            v-model="selectedServiceId"
+            :options="serviceFilterOptions"
+            placeholder="按 AI 服务筛选"
+            size="sm"
+          />
+          <p
+            v-if="selectedServiceId > 0 && total > rules.length"
+            class="form-hint"
+          >
+            注：当前筛选仅对本页 {{ rules.length }} 条生效，其他页未加载
+          </p>
+        </div>
         <AppButton variant="primary" @click="openCreate">
           <Plus :size="16" />
           新建规则
@@ -423,7 +447,7 @@ async function saveTiers() {
       :columns="columns"
       :data="displayedRules"
       :loading="loading"
-      :total="total"
+      :total="selectedServiceId > 0 ? displayedRules.length : total"
       :page="page"
       :page-size="pageSize"
       @update:page="page = $event"
@@ -491,28 +515,36 @@ async function saveTiers() {
 
       <template #cell-associated_services="{ row }">
         <div class="assoc-services">
-          <template v-if="getMatchedServices(row as PricingRule).length === 0">
+          <template
+            v-if="
+              (matchedByRuleId.get((row as PricingRule).id) ?? []).length === 0
+            "
+          >
             <span class="assoc-empty">— 无关联服务</span>
           </template>
           <template v-else>
             <span
-              v-for="svc in getMatchedServices(row as PricingRule).slice(0, 3)"
+              v-for="svc in (
+                matchedByRuleId.get((row as PricingRule).id) ?? []
+              ).slice(0, 3)"
               :key="svc.id"
               class="assoc-badge"
               :title="svc.model_key"
               >{{ svc.display_name }}</span
             >
             <span
-              v-if="getMatchedServices(row as PricingRule).length > 3"
+              v-if="
+                (matchedByRuleId.get((row as PricingRule).id) ?? []).length > 3
+              "
               class="assoc-more"
               :title="
-                getMatchedServices(row as PricingRule)
+                (matchedByRuleId.get((row as PricingRule).id) ?? [])
                   .slice(3)
                   .map((s) => s.display_name)
                   .join(', ')
               "
               >+{{
-                getMatchedServices(row as PricingRule).length - 3
+                (matchedByRuleId.get((row as PricingRule).id) ?? []).length - 3
               }}
               更多</span
             >
@@ -921,6 +953,30 @@ async function saveTiers() {
   display: flex;
   align-items: center;
   gap: var(--space-3);
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.form-hint {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* Associated services column */
