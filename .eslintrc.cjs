@@ -15,5 +15,12 @@ module.exports = {
     'vue/multi-word-component-names': 'off',
     '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
     'no-console': 'warn'
-  }
+  },
+  overrides: [
+    {
+      // vite.config.{ts,js} runs in Node (process.cwd() etc.)
+      files: ['vite.config.*'],
+      env: { node: true }
+    }
+  ]
 }
