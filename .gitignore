@@ -30,3 +30,10 @@ coverage
 /test-results/
 /playwright-report/
 /playwright/.cache/
+
+# vite.config 编译产物（只 commit .ts 源，.js/.d.ts 是 tsc 生成）
+/vite.config.js
+/vite.config.d.ts
+
+# Playwright 截图产物
+/e2e/screenshots/
