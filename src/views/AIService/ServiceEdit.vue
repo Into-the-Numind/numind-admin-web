@@ -421,13 +421,16 @@ async function save() {
         service: servicePayload,
         route: routePayload,
       };
-      await createServiceWithRouteApi(payload);
+      // 跳到新建服务的 edit 页而非列表：列表默认 filter=active，若新建的
+      // service is_active=false 会直接看不到。Review P1 #7（2026-04-20）。
+      const result = await createServiceWithRouteApi(payload);
       toast.success("服务及路由已创建");
-    } else {
-      const payload: UpdateServiceRequest = buildPayloadBase();
-      await updateServiceApi(serviceId.value, payload);
-      toast.success("服务已更新");
+      router.push(`/ai-services/${result.service.id}/edit`);
+      return;
     }
+    const payload: UpdateServiceRequest = buildPayloadBase();
+    await updateServiceApi(serviceId.value, payload);
+    toast.success("服务已更新");
     router.push("/ai-services");
   } catch (e) {
     toast.error((e as Error).message || "保存失败");
