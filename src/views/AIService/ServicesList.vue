@@ -205,9 +205,9 @@ onMounted(fetchServices);
           <span
             v-if="((row as AIService).route_count ?? 0) === 0"
             class="orphan-badge"
-            title="该服务没有配置任何路由，调用时将直接失败"
+            title="该服务没有任何启用中的路由，调用时将直接失败。检查 route 配置或启用已禁用的路由。"
           >
-            ⚠ 无路由
+            ⚠ 无可用路由
           </span>
         </div>
       </template>
