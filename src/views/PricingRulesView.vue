@@ -128,6 +128,7 @@ interface PricingForm {
   service_type: string;
   provider: string;
   model: string;
+  billing_mode: string;
   input_price_per_mtok: number;
   output_price_per_mtok: number;
   price_per_call: number;
@@ -139,10 +140,16 @@ interface PricingForm {
   is_active: boolean;
 }
 
+const billingModeOptions = [
+  { label: "标准（固定单价）", value: "flat" },
+  { label: "分段计费（阶梯价）", value: "tiered_token" },
+];
+
 const defaultForm: PricingForm = {
   service_type: "",
   provider: "",
   model: "",
+  billing_mode: "flat",
   input_price_per_mtok: 0,
   output_price_per_mtok: 0,
   price_per_call: 0,
@@ -258,6 +265,7 @@ function openEdit(rule: PricingRule) {
     service_type: rule.service_type,
     provider: rule.provider,
     model: rule.model,
+    billing_mode: (rule as any).billing_mode || "flat",
     input_price_per_mtok: rule.input_price_per_mtok,
     output_price_per_mtok: rule.output_price_per_mtok,
     price_per_call: rule.price_per_call,
@@ -284,6 +292,7 @@ async function submitForm() {
         service_type: form.value.service_type,
         provider: form.value.provider,
         model: form.value.model,
+        billing_mode: form.value.billing_mode,
         input_price_per_mtok: form.value.input_price_per_mtok,
         output_price_per_mtok: form.value.output_price_per_mtok,
         price_per_call: form.value.price_per_call,
@@ -643,6 +652,19 @@ async function saveTiers() {
                   v-model="form.model"
                   placeholder="模型名称（留空为默认规则）"
                 />
+              </div>
+              <div class="form-group form-group--full">
+                <label class="form-label">计费模式</label>
+                <AppSelect
+                  v-model="form.billing_mode"
+                  :options="billingModeOptions"
+                />
+                <p
+                  v-if="form.billing_mode === 'tiered_token'"
+                  class="form-hint"
+                >
+                  选择分段计费后，保存规则，然后在列表中点击「分段配置」按钮设置各区间价格。
+                </p>
               </div>
 
               <!-- 成本价 Section -->
@@ -1103,6 +1125,12 @@ async function saveTiers() {
   font-weight: 500;
   color: var(--text);
   margin-bottom: var(--space-2);
+}
+
+.form-hint {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin-top: var(--space-1);
 }
 
 .form-section-header {
