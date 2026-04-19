@@ -23,6 +23,7 @@ import {
   Server,
   Sigma,
   Wrench,
+  Landmark,
 } from "lucide-vue-next";
 
 const props = defineProps<{ collapsed: boolean }>();
@@ -79,6 +80,13 @@ const navItems = [
     label: "定价管理",
     icon: Settings,
     path: "/billing/pricing",
+  },
+  // Q3: credits-system B2B 月度结算报表（运营月末对账用）
+  {
+    name: "B2BBillingReport",
+    label: "B2B 月度结算",
+    icon: Landmark,
+    path: "/admin/b2b-billing",
   },
   { name: "credits", label: "额度管理", icon: Coins, path: "/credits" },
   { name: "orders", label: "订单管理", icon: ShoppingCart, path: "/orders" },
