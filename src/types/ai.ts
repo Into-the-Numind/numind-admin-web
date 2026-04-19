@@ -70,6 +70,10 @@ export interface AIService {
   icon: string;
   sort_order: number;
   is_active: boolean;
+  // route_count is populated by the list endpoint so the UI can flag services
+  // with zero active routes (orphan Services, the SalesRAG incident root cause).
+  // Detail endpoint populates routes[] instead; this field may be undefined there.
+  route_count?: number;
   created_at: string;
   updated_at: string;
 }
@@ -95,6 +99,19 @@ export interface CreateServiceRequest {
 }
 
 export type UpdateServiceRequest = Partial<CreateServiceRequest>;
+
+// Atomic Service+Route creation — backed by POST /v1/admin/ai/services-with-route.
+// Used by the create-service flow to guarantee a Route exists before the Service
+// is persisted, closing the orphan-Service hole that caused the SalesRAG incident.
+export interface CreateServiceWithRouteRequest {
+  service: CreateServiceRequest;
+  route: CreateRouteRequest;
+}
+
+export interface CreateServiceWithRouteResponse {
+  service: AIService;
+  route: RouteDTO;
+}
 
 // ====== Task Profile ======
 

@@ -4,6 +4,8 @@ import type {
   AIServiceDetail,
   CreateServiceRequest,
   UpdateServiceRequest,
+  CreateServiceWithRouteRequest,
+  CreateServiceWithRouteResponse,
   TaskProfile,
   TaskDetailResponse,
   UpdateTaskRequest,
@@ -37,6 +39,17 @@ export const getServiceApi = (id: number) =>
 
 export const createServiceApi = (data: CreateServiceRequest) =>
   post<AIService>("/v1/admin/ai/services", data);
+
+// Atomic service+route creation. Prefer this over createServiceApi when creating
+// a new Service — it guarantees the Service is never persisted without at least
+// one Route, which is what caused the SalesRAG orphan-service outage.
+export const createServiceWithRouteApi = (
+  data: CreateServiceWithRouteRequest,
+) =>
+  post<CreateServiceWithRouteResponse>(
+    "/v1/admin/ai/services-with-route",
+    data,
+  );
 
 export const updateServiceApi = (id: number, data: UpdateServiceRequest) =>
   put<null>(`/v1/admin/ai/services/${id}`, data);
