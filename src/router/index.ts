@@ -153,6 +153,13 @@ const router = createRouter({
           component: () => import("@/views/MigrationsView.vue"),
           meta: { title: "迁移工具" },
         },
+        // Q3: credits-system B2B 月度结算报表
+        {
+          path: "admin/b2b-billing",
+          name: "B2BBillingReport",
+          component: () => import("@/views/B2BBillingReportView.vue"),
+          meta: { title: "B2B 月度结算" },
+        },
       ],
     },
     {
