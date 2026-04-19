@@ -54,6 +54,7 @@ const columns: Column[] = [
   { key: "model_key", title: "标识", width: "180px", align: "left" },
   { key: "display_name", title: "显示名称", width: "180px", align: "left" },
   { key: "service_type", title: "类型", width: "80px" },
+  { key: "route_count", title: "路由数", width: "120px" },
   { key: "tiers", title: "档位 (延迟·质量)", width: "160px", align: "left" },
   { key: "status", title: "状态", width: "90px" },
   { key: "actions", title: "操作", width: "120px" },
@@ -196,6 +197,21 @@ onMounted(fetchServices);
         <span class="type-tag">{{ String(value).toUpperCase() }}</span>
       </template>
 
+      <template #cell-route_count="{ row }">
+        <div class="route-count-cell">
+          <span class="route-count-num">{{
+            (row as AIService).route_count ?? 0
+          }}</span>
+          <span
+            v-if="((row as AIService).route_count ?? 0) === 0"
+            class="orphan-badge"
+            title="该服务没有配置任何路由，调用时将直接失败"
+          >
+            ⚠ 无路由
+          </span>
+        </div>
+      </template>
+
       <template #cell-status="{ row }">
         <StatusBadge
           :status="getStatus(row as AIService)"
@@ -288,5 +304,35 @@ onMounted(fetchServices);
   display: flex;
   gap: var(--space-1);
   justify-content: center;
+}
+
+.route-count-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  justify-content: center;
+}
+
+.route-count-num {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--on-surface);
+  min-width: 1.5em;
+  text-align: right;
+}
+
+.orphan-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--space-2);
+  font-family: var(--font-label);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  border-radius: var(--radius-sm);
+  line-height: 1.5;
+  background: var(--danger-soft);
+  color: #dc2626;
+  white-space: nowrap;
 }
 </style>

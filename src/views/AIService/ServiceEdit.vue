@@ -3,7 +3,7 @@ import { ref, computed, onMounted, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import {
   getServiceApi,
-  createServiceApi,
+  createServiceWithRouteApi,
   updateServiceApi,
   getCapabilitySchemaApi,
   createRouteApi,
@@ -20,6 +20,7 @@ import type {
   CapabilityField,
   CapabilitySchemaMap,
   CreateServiceRequest,
+  CreateServiceWithRouteRequest,
   UpdateServiceRequest,
   CreateRouteRequest,
   UpdateRouteRequest,
@@ -120,6 +121,23 @@ const addRouteSaving = ref(false);
 const deleteConfirmVisible = ref(false);
 const deleteTargetId = ref<number | null>(null);
 const deleteInProgress = ref(false);
+
+// Inline Route form used ONLY in create mode. In edit mode, routes are managed
+// in the existing routes table further down the page.
+// Kept separate from addRouteForm (used by the add-route modal in edit mode)
+// so the two flows don't leak state into each other.
+const createRouteForm = ref<{
+  provider_id: number | null;
+  provider_model_id: string;
+  priority: string;
+  is_active: boolean;
+}>({
+  provider_id: null,
+  provider_model_id: "",
+  priority: "5",
+  is_active: true,
+});
+const createRouteErrors = ref<Record<string, string>>({});
 
 // Providers
 const providers = ref<ProviderDTO[]>([]);
@@ -301,19 +319,30 @@ async function loadData() {
   loading.value = true;
   error.value = "";
   try {
-    const [schemaRes] = await Promise.all([getCapabilitySchemaApi()]);
+    // Providers are needed in both modes now:
+    // - create mode: for the mandatory inline Route form
+    // - edit mode: for the add-route modal + display
+    const [schemaRes, provRes] = await Promise.all([
+      getCapabilitySchemaApi(),
+      listProvidersApi().catch(() => ({
+        list: [] as ProviderDTO[],
+        total: 0,
+      })),
+    ]);
     capabilitySchemaMap.value = schemaRes ?? {};
+    providers.value = provRes.list ?? [];
 
-    if (!isNew.value) {
-      const [svc, provRes] = await Promise.all([
-        getServiceApi(serviceId.value),
-        listProvidersApi().catch(() => ({
-          list: [] as ProviderDTO[],
-          total: 0,
-        })),
-      ]);
+    if (isNew.value) {
+      // Pre-select first provider so the dropdown has a sane default.
+      if (
+        providers.value.length > 0 &&
+        createRouteForm.value.provider_id == null
+      ) {
+        createRouteForm.value.provider_id = providers.value[0].id;
+      }
+    } else {
+      const svc = await getServiceApi(serviceId.value);
       applyService(svc);
-      providers.value = provRes.list ?? [];
       await loadPricingRules();
     }
   } catch (e) {
@@ -345,6 +374,23 @@ function buildPayloadBase() {
   };
 }
 
+// Validate the inline Route form used only in create mode.
+// Returns true iff all required fields are present and numerically valid.
+function validateCreateRoute(): boolean {
+  createRouteErrors.value = {};
+  if (!createRouteForm.value.provider_id) {
+    createRouteErrors.value.provider_id = "Provider 必填";
+  }
+  if (!createRouteForm.value.provider_model_id.trim()) {
+    createRouteErrors.value.provider_model_id = "Provider Model ID 必填";
+  }
+  const p = Number(createRouteForm.value.priority);
+  if (createRouteForm.value.priority === "" || Number.isNaN(p)) {
+    createRouteErrors.value.priority = "优先级必须是数字";
+  }
+  return Object.keys(createRouteErrors.value).length === 0;
+}
+
 async function save() {
   if (!validateAll()) {
     toast.error("请检查必填项");
@@ -354,13 +400,29 @@ async function save() {
     toast.error("请修正表单错误后再保存");
     return;
   }
+  // In create mode, the route sub-form is mandatory. This is the UI-level
+  // enforcement of the fix: no Service gets created without a Route.
+  if (isNew.value && !validateCreateRoute()) {
+    toast.error("请完整填写 Route 配置");
+    return;
+  }
   if (saving.value) return;
   saving.value = true;
   try {
     if (isNew.value) {
-      const payload: CreateServiceRequest = buildPayloadBase();
-      await createServiceApi(payload);
-      toast.success("服务已创建");
+      const servicePayload: CreateServiceRequest = buildPayloadBase();
+      const routePayload: CreateRouteRequest = {
+        provider_id: createRouteForm.value.provider_id!,
+        provider_model_id: createRouteForm.value.provider_model_id.trim(),
+        priority: Number(createRouteForm.value.priority),
+        is_active: createRouteForm.value.is_active,
+      };
+      const payload: CreateServiceWithRouteRequest = {
+        service: servicePayload,
+        route: routePayload,
+      };
+      await createServiceWithRouteApi(payload);
+      toast.success("服务及路由已创建");
     } else {
       const payload: UpdateServiceRequest = buildPayloadBase();
       await updateServiceApi(serviceId.value, payload);
@@ -833,6 +895,68 @@ onMounted(loadData);
             />
             thinking_only（仅 thinking 模式可用）
           </label>
+        </div>
+      </section>
+
+      <!-- Route 配置 (create mode only) -->
+      <!-- Plugs the orphan-service hole: a Service can't be created without a Route. -->
+      <section v-if="isNew" class="form-section">
+        <h2 class="section-title">Route 配置</h2>
+        <p class="section-desc">
+          新建服务必须同时配置至少一条路由，否则调用会因无可用路由直接失败。
+        </p>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Provider *</label>
+            <AppSelect
+              :model-value="createRouteForm.provider_id ?? ''"
+              :options="providerOptions"
+              placeholder="选择供应商"
+              @update:model-value="
+                (v: string | number) => {
+                  createRouteForm.provider_id = v === '' ? null : Number(v);
+                }
+              "
+            />
+            <p v-if="createRouteErrors.provider_id" class="field-error">
+              {{ createRouteErrors.provider_id }}
+            </p>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Provider Model ID *</label>
+            <AppInput
+              v-model="createRouteForm.provider_model_id"
+              placeholder="如 qwen-turbo"
+              @blur="validateCreateRoute()"
+            />
+            <p v-if="createRouteErrors.provider_model_id" class="field-error">
+              {{ createRouteErrors.provider_model_id }}
+            </p>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">优先级</label>
+            <AppInput
+              v-model="createRouteForm.priority"
+              type="number"
+              placeholder="5"
+            />
+            <p v-if="createRouteErrors.priority" class="field-error">
+              {{ createRouteErrors.priority }}
+            </p>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label checkbox-label">
+              <input
+                v-model="createRouteForm.is_active"
+                type="checkbox"
+                class="checkbox"
+              />
+              启用此路由
+            </label>
+          </div>
         </div>
       </section>
 
