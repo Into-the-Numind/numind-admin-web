@@ -265,7 +265,7 @@ function openEdit(rule: PricingRule) {
     service_type: rule.service_type,
     provider: rule.provider,
     model: rule.model,
-    billing_mode: (rule as any).billing_mode || "flat",
+    billing_mode: rule.billing_mode || "flat",
     input_price_per_mtok: rule.input_price_per_mtok,
     output_price_per_mtok: rule.output_price_per_mtok,
     price_per_call: rule.price_per_call,

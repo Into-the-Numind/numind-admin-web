@@ -102,6 +102,7 @@ export interface PricingRule {
   service_type: string;
   provider: string;
   model: string;
+  billing_mode: string;
   input_price_per_mtok: number;
   output_price_per_mtok: number;
   price_per_call: number;
