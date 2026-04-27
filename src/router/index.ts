@@ -142,6 +142,12 @@ const router = createRouter({
         },
         // F.4: credits-system admin pages
         {
+          path: "ai-services/context-budget",
+          name: "context-budget",
+          component: () => import("@/views/AIService/ContextBudget.vue"),
+          meta: { title: "Context Budget", requiresAuth: true },
+        },
+        {
           path: "ai-services/coefficients",
           name: "EstimationCoefficients",
           component: () => import("@/views/EstimationCoefficientView.vue"),

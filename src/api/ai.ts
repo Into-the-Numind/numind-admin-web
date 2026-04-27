@@ -20,6 +20,14 @@ import type {
   RouteDTO,
   CreateRouteRequest,
   UpdateRouteRequest,
+  TokenProfile,
+  CreateTokenProfileRequest,
+  UpdateTokenProfileRequest,
+  ContextBudgetPolicy,
+  UpdateContextBudgetPolicyRequest,
+  ContextBudgetEvent,
+  PreviewContextBudgetRequest,
+  PreviewContextBudgetResponse,
 } from "@/types/ai";
 
 // ====== AI Services ======
@@ -129,6 +137,77 @@ export const testProviderConnectionApi = (id: number) =>
   post<TestConnectionResult>(
     `/v1/admin/ai/providers/${id}/test-connection`,
     {},
+  );
+
+// ====== Context Budget ======
+
+export const listTokenProfilesApi = (params: {
+  provider?: string;
+  model?: string;
+  service_type?: string;
+  is_active?: string;
+  page?: number;
+  page_size?: number;
+}) =>
+  get<{ list: TokenProfile[]; total: number }>(
+    "/v1/admin/context-budget/token-profiles",
+    { params },
+  );
+
+export const saveTokenProfileApi = (payload: CreateTokenProfileRequest) =>
+  post<TokenProfile>("/v1/admin/context-budget/token-profiles", payload);
+
+export const updateTokenProfileApi = (
+  id: number,
+  payload: UpdateTokenProfileRequest,
+) =>
+  put<TokenProfile>(`/v1/admin/context-budget/token-profiles/${id}`, payload);
+
+export const deleteTokenProfileApi = (id: number) =>
+  del<null>(`/v1/admin/context-budget/token-profiles/${id}`);
+
+export const listTokenProfilesHistoryApi = (
+  provider: string,
+  model: string,
+  serviceType: string,
+) =>
+  get<{ list: TokenProfile[] }>(
+    "/v1/admin/context-budget/token-profiles/history",
+    { params: { provider, model, service_type: serviceType } },
+  );
+
+export const listContextBudgetPoliciesApi = (params?: { is_active?: string }) =>
+  get<{ list: ContextBudgetPolicy[]; total: number }>(
+    "/v1/admin/context-budget/policies",
+    { params },
+  );
+
+export const updateContextBudgetPolicyApi = (
+  operation: string,
+  payload: UpdateContextBudgetPolicyRequest,
+) =>
+  put<ContextBudgetPolicy>(
+    `/v1/admin/context-budget/policies/${operation}`,
+    payload,
+  );
+
+export const listContextBudgetEventsApi = (params: {
+  operation?: string;
+  status?: string;
+  provider?: string;
+  model?: string;
+  page?: number;
+  page_size?: number;
+}) =>
+  get<{ list: ContextBudgetEvent[]; total: number }>(
+    "/v1/admin/context-budget/events",
+    { params },
+  );
+
+export const previewContextBudgetApi = (payload: PreviewContextBudgetRequest) =>
+  post<PreviewContextBudgetResponse>(
+    "/v1/admin/context-budget/preview",
+    payload,
   );
 
 // ====== Audit Logs ======

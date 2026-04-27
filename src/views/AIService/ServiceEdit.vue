@@ -265,6 +265,25 @@ function setFeatureMapFromText(fieldName: string, text: string) {
   }
 }
 
+/**
+ * validateLLMCapability — validates context_window and max_output_tokens
+ * for LLM type services. These fields affect Reserve, compression, and
+ * failure rate. spec §7.4 / §8.1
+ */
+function validateLLMCapability(
+  capability: Record<string, unknown>,
+): string | null {
+  const contextWindow = Number(capability.context_window);
+  const maxOutputTokens = Number(capability.max_output_tokens);
+  if (!Number.isFinite(contextWindow) || contextWindow <= 0)
+    return "context_window 必须大于 0";
+  if (!Number.isFinite(maxOutputTokens) || maxOutputTokens <= 0)
+    return "max_output_tokens 必须大于 0";
+  if (maxOutputTokens >= contextWindow)
+    return "max_output_tokens 必须小于 context_window";
+  return null;
+}
+
 function validateField(field: string) {
   const v = form.value;
   if (field === "model_key") {
@@ -275,11 +294,24 @@ function validateField(field: string) {
       ? ""
       : "显示名称不能为空";
   }
+  if (field === "llm_capability") {
+    if (form.value.service_type === "llm") {
+      const msg = validateLLMCapability(form.value.capability_json);
+      fieldErrors.value.llm_capability = msg ?? "";
+    } else {
+      fieldErrors.value.llm_capability = "";
+    }
+  }
 }
 
 function validateAll(): boolean {
   validateField("model_key");
   validateField("display_name");
+  // Enforce LLM context fields on save for LLM services
+  if (form.value.service_type === "llm") {
+    const capErr = validateLLMCapability(form.value.capability_json);
+    fieldErrors.value.llm_capability = capErr ?? "";
+  }
   return !Object.values(fieldErrors.value).some(Boolean);
 }
 
@@ -628,6 +660,45 @@ function billingModeCss(rule: PricingRule): string {
   return "pricing-badge--flat";
 }
 
+/**
+ * safeBudgetPreview — spec §8.1 "show safe budget preview using active/default policy"
+ *
+ * Pure local math using the sop_run default policy constants.
+ * No API call required here; the ContextBudget admin page provides a
+ * full API-backed preview with any custom policy parameters.
+ *
+ * Formula: floor((context_window - reserved_output - overhead) × safe_ratio)
+ *   reserved_output = 16384  (sop_run default reserved_output_tokens)
+ *   overhead        =   512  (sop_run default fixed_overhead_tokens)
+ *   safe_ratio      =  0.85  (sop_run default safe_ratio)
+ */
+const safeBudgetPreview = computed(() => {
+  if (form.value.service_type !== "llm") return null;
+  const cw = Number(form.value.capability_json?.context_window);
+  const mo = Number(form.value.capability_json?.max_output_tokens);
+  if (
+    !Number.isFinite(cw) ||
+    !Number.isFinite(mo) ||
+    cw <= 0 ||
+    mo <= 0 ||
+    mo >= cw
+  ) {
+    return null;
+  }
+  const RESERVED = 16384;
+  const OVERHEAD = 512;
+  const SAFE_RATIO = 0.85;
+  const safeInputBudget = Math.floor((cw - RESERVED - OVERHEAD) * SAFE_RATIO);
+  return {
+    contextWindow: cw,
+    maxOutputTokens: mo,
+    reserved: RESERVED,
+    overhead: OVERHEAD,
+    safeRatio: SAFE_RATIO,
+    safeInputBudget,
+  };
+});
+
 watch(() => route.params.id, loadData);
 onMounted(loadData);
 </script>
@@ -785,6 +856,11 @@ onMounted(loadData);
                 (v: string | number | null) =>
                   setCapInt(field.name, v == null ? '' : String(v))
               "
+              @blur="
+                (field.name === 'context_window' ||
+                  field.name === 'max_output_tokens') &&
+                validateField('llm_capability')
+              "
             />
 
             <label v-else-if="field.type === 'bool'" class="checkbox-label">
@@ -830,6 +906,44 @@ onMounted(loadData);
           </div>
         </div>
       </section>
+
+      <!-- LLM context budget hint (only for llm service type) -->
+      <div
+        v-if="form.service_type === 'llm'"
+        class="llm-cap-hint"
+        :class="{ 'llm-cap-hint--error': fieldErrors.llm_capability }"
+      >
+        <p v-if="fieldErrors.llm_capability" class="llm-cap-hint__error">
+          {{ fieldErrors.llm_capability }}
+        </p>
+        <p v-else class="llm-cap-hint__info">
+          ⚠ LLM 服务：<code>context_window</code> 和
+          <code>max_output_tokens</code> 影响 Reserve 预扣、Context Compression
+          触发阈值和调用失败率。请准确填写。
+        </p>
+      </div>
+
+      <!-- Safe input budget preview (spec §8.1 — local math, no API call) -->
+      <div v-if="safeBudgetPreview" class="safe-budget-preview">
+        <p class="hint-label">基于 sop_run 默认策略的安全输入预算估算</p>
+        <p>
+          Safe Input Budget ≈
+          <strong>{{
+            safeBudgetPreview.safeInputBudget.toLocaleString()
+          }}</strong>
+          tokens
+          <span class="hint-note">
+            = floor(({{ safeBudgetPreview.contextWindow.toLocaleString() }} -
+            {{ safeBudgetPreview.reserved.toLocaleString() }} -
+            {{ safeBudgetPreview.overhead.toLocaleString() }}) ×
+            {{ safeBudgetPreview.safeRatio }})
+          </span>
+        </p>
+        <p class="hint-note">
+          实际预算受运行时 operation policy 影响；管理端 ContextBudget
+          页面可调每个 operation 的 reserved/safe_ratio。
+        </p>
+      </div>
 
       <!-- Tiers, tags, display -->
       <section class="form-section">
@@ -1712,5 +1826,58 @@ onMounted(loadData);
 
 .modal-leave-to .modal-card {
   transform: scale(0.95);
+}
+
+/* LLM capability budget hint */
+.llm-cap-hint {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-4);
+  background: #fef9c3;
+  border: 1px solid #fde68a;
+}
+
+.llm-cap-hint--error {
+  background: var(--danger-light, #fee2e2);
+  border-color: var(--danger, #ef4444);
+}
+
+.llm-cap-hint__info {
+  font-size: var(--text-sm);
+  color: #92400e;
+}
+
+.llm-cap-hint__info code {
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+.llm-cap-hint__error {
+  font-size: var(--text-sm);
+  color: #991b1b;
+  font-weight: 500;
+}
+
+/* Safe budget preview (spec §8.1) */
+.safe-budget-preview {
+  margin-top: 8px;
+  margin-bottom: var(--space-4);
+  padding: 8px 12px;
+  background: var(--info-bg, #f0f9ff);
+  border-left: 3px solid var(--info-color, #3b82f6);
+  font-size: 13px;
+  border-radius: 4px;
+}
+
+.safe-budget-preview .hint-label {
+  font-weight: 500;
+  margin: 0 0 4px;
+  color: var(--text);
+}
+
+.safe-budget-preview .hint-note {
+  color: var(--text-secondary, #6b7280);
+  font-size: 12px;
+  margin: 4px 0 0;
 }
 </style>

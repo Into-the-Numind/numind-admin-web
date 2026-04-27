@@ -199,6 +199,106 @@ export interface TestConnectionResult {
   http_status?: number;
 }
 
+// ====== Context Budget ======
+
+export interface TokenProfile {
+  id: number;
+  provider: string;
+  model: string;
+  model_family: string;
+  service_type: string;
+  profile_json: Record<string, unknown>;
+  safety_multiplier: number;
+  calibration_multiplier: number;
+  calibration_sample_count: number;
+  calibration_p50_abs_error: number;
+  calibration_p90_abs_error: number;
+  calibration_p99_under_ratio: number;
+  version: number;
+  is_active: boolean;
+  is_fallback: boolean;
+  updated_by: string;
+  updated_at: string;
+  created_at?: string;
+}
+
+export interface CreateTokenProfileRequest {
+  provider: string;
+  model: string;
+  model_family?: string;
+  service_type: string;
+  safety_multiplier?: number;
+  calibration_multiplier?: number;
+  profile_json?: Record<string, unknown>;
+}
+
+export type UpdateTokenProfileRequest = Partial<CreateTokenProfileRequest>;
+
+export interface ContextBudgetPolicy {
+  id: number;
+  operation: string;
+  fixed_overhead_tokens: number;
+  reserved_output_tokens: number;
+  safe_ratio: number;
+  version: number;
+  is_active: boolean;
+  updated_by: string;
+  updated_at: string;
+  created_at?: string;
+}
+
+export interface UpdateContextBudgetPolicyRequest {
+  fixed_overhead_tokens?: number;
+  reserved_output_tokens?: number;
+  safe_ratio?: number;
+}
+
+export interface ContextBudgetEvent {
+  id: number;
+  user_id?: number;
+  operation: string;
+  task_id?: string;
+  provider: string;
+  model: string;
+  context_window: number;
+  max_output_tokens: number;
+  reserved_output_tokens: number;
+  fixed_overhead_tokens: number;
+  safe_ratio: number;
+  safe_input_budget: number;
+  estimated_before: number;
+  estimated_after: number;
+  actual_prompt_tokens?: number;
+  actual_completion_tokens?: number;
+  reserve_amount?: number;
+  reconcile_delta?: number;
+  dropped_fragment_count: number;
+  summarized_fragment_count: number;
+  critical_fragment_count: number;
+  token_profile_id?: number;
+  budget_policy_id?: number;
+  status: "ok" | "compressed" | "failed" | "skipped";
+  error_code?: string;
+  created_at: string;
+}
+
+export interface PreviewContextBudgetRequest {
+  service_id: number;
+  operation: string;
+  fixed_overhead_tokens: number;
+  reserved_output_tokens: number;
+  safe_ratio: number;
+}
+
+export interface PreviewContextBudgetResponse {
+  context_window: number;
+  max_output_tokens: number;
+  reserved_output_tokens: number;
+  safe_input_budget: number;
+  valid: boolean;
+  warnings: string[];
+}
+
 // ====== Audit Log ======
 
 export interface AuditLogDiff {
