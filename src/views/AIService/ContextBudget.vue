@@ -115,6 +115,13 @@ const activeFilterOptions = [
   { label: "全部", value: "all" },
 ];
 
+const profileServiceTypeFilterOptions = [
+  { label: "全部类型", value: "" },
+  { label: "llm_chat", value: "llm_chat" },
+  { label: "llm_vision", value: "llm_vision" },
+  { label: "llm_thinking", value: "llm_thinking" },
+];
+
 async function loadProfiles() {
   profileLoading.value = true;
   profileError.value = "";
@@ -730,6 +737,11 @@ function formatDateTime(iso: string | undefined): string {
             v-model="profileFilterModel"
             placeholder="Model 过滤"
             class="filter-input"
+          />
+          <AppSelect
+            v-model="profileFilterServiceType"
+            :options="profileServiceTypeFilterOptions"
+            class="filter-select"
           />
           <AppSelect
             v-model="profileFilterActive"

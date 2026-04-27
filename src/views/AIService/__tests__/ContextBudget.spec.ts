@@ -201,7 +201,6 @@ vi.mock("@/utils/format", () => ({
 }));
 
 import ContextBudget from "@/views/AIService/ContextBudget.vue";
-import ServiceEdit from "@/views/AIService/ServiceEdit.vue";
 import * as aiApi from "@/api/ai";
 
 const router = createRouter({
@@ -216,18 +215,6 @@ const router = createRouter({
 async function mountContextBudget() {
   setActivePinia(createPinia());
   const wrapper = mount(ContextBudget, {
-    global: { plugins: [router] },
-    attachTo: document.body,
-  });
-  await flushPromises();
-  return wrapper;
-}
-
-async function mountServiceEdit(id = "new") {
-  setActivePinia(createPinia());
-  await router.push(`/ai-services/${id}/edit`);
-  await router.isReady();
-  const wrapper = mount(ServiceEdit, {
     global: { plugins: [router] },
     attachTo: document.body,
   });

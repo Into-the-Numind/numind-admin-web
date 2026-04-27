@@ -660,6 +660,45 @@ function billingModeCss(rule: PricingRule): string {
   return "pricing-badge--flat";
 }
 
+/**
+ * safeBudgetPreview — spec §8.1 "show safe budget preview using active/default policy"
+ *
+ * Pure local math using the sop_run default policy constants.
+ * No API call required here; the ContextBudget admin page provides a
+ * full API-backed preview with any custom policy parameters.
+ *
+ * Formula: floor((context_window - reserved_output - overhead) × safe_ratio)
+ *   reserved_output = 16384  (sop_run default reserved_output_tokens)
+ *   overhead        =   512  (sop_run default fixed_overhead_tokens)
+ *   safe_ratio      =  0.85  (sop_run default safe_ratio)
+ */
+const safeBudgetPreview = computed(() => {
+  if (form.value.service_type !== "llm") return null;
+  const cw = Number(form.value.capability_json?.context_window);
+  const mo = Number(form.value.capability_json?.max_output_tokens);
+  if (
+    !Number.isFinite(cw) ||
+    !Number.isFinite(mo) ||
+    cw <= 0 ||
+    mo <= 0 ||
+    mo >= cw
+  ) {
+    return null;
+  }
+  const RESERVED = 16384;
+  const OVERHEAD = 512;
+  const SAFE_RATIO = 0.85;
+  const safeInputBudget = Math.floor((cw - RESERVED - OVERHEAD) * SAFE_RATIO);
+  return {
+    contextWindow: cw,
+    maxOutputTokens: mo,
+    reserved: RESERVED,
+    overhead: OVERHEAD,
+    safeRatio: SAFE_RATIO,
+    safeInputBudget,
+  };
+});
+
 watch(() => route.params.id, loadData);
 onMounted(loadData);
 </script>
@@ -881,6 +920,28 @@ onMounted(loadData);
           ⚠ LLM 服务：<code>context_window</code> 和
           <code>max_output_tokens</code> 影响 Reserve 预扣、Context Compression
           触发阈值和调用失败率。请准确填写。
+        </p>
+      </div>
+
+      <!-- Safe input budget preview (spec §8.1 — local math, no API call) -->
+      <div v-if="safeBudgetPreview" class="safe-budget-preview">
+        <p class="hint-label">基于 sop_run 默认策略的安全输入预算估算</p>
+        <p>
+          Safe Input Budget ≈
+          <strong>{{
+            safeBudgetPreview.safeInputBudget.toLocaleString()
+          }}</strong>
+          tokens
+          <span class="hint-note">
+            = floor(({{ safeBudgetPreview.contextWindow.toLocaleString() }} -
+            {{ safeBudgetPreview.reserved.toLocaleString() }} -
+            {{ safeBudgetPreview.overhead.toLocaleString() }}) ×
+            {{ safeBudgetPreview.safeRatio }})
+          </span>
+        </p>
+        <p class="hint-note">
+          实际预算受运行时 operation policy 影响；管理端 ContextBudget
+          页面可调每个 operation 的 reserved/safe_ratio。
         </p>
       </div>
 
@@ -1795,5 +1856,28 @@ onMounted(loadData);
   font-size: var(--text-sm);
   color: #991b1b;
   font-weight: 500;
+}
+
+/* Safe budget preview (spec §8.1) */
+.safe-budget-preview {
+  margin-top: 8px;
+  margin-bottom: var(--space-4);
+  padding: 8px 12px;
+  background: var(--info-bg, #f0f9ff);
+  border-left: 3px solid var(--info-color, #3b82f6);
+  font-size: 13px;
+  border-radius: 4px;
+}
+
+.safe-budget-preview .hint-label {
+  font-weight: 500;
+  margin: 0 0 4px;
+  color: var(--text);
+}
+
+.safe-budget-preview .hint-note {
+  color: var(--text-secondary, #6b7280);
+  font-size: 12px;
+  margin: 4px 0 0;
 }
 </style>
