@@ -152,6 +152,25 @@ function onProfilePageChange(p: number) {
 }
 
 // ---- Profile form modal (create / edit) ----
+const DEFAULT_PROFILE_JSON = {
+  method: "qwen-zh-en",
+  message_overhead_tokens: 4,
+  fragment_overhead_tokens: 2,
+  classes: {
+    en: { token_per_char: 0.25 },
+    zh: { token_per_char: 0.6 },
+    code: { token_per_char: 0.3 },
+    json: { token_per_char: 0.25 },
+    markdown_table: { token_per_char: 0.3 },
+    symbol: { token_per_char: 0.2 },
+    mixed: { token_per_char: 0.45 },
+  },
+  safety_multiplier: 1.3,
+  calibration_multiplier: 1.0,
+};
+
+const DEFAULT_PROFILE_JSON_STR = JSON.stringify(DEFAULT_PROFILE_JSON, null, 2);
+
 interface ProfileForm {
   provider: string;
   model: string;
@@ -159,6 +178,7 @@ interface ProfileForm {
   service_type: string;
   safety_multiplier: string;
   calibration_multiplier: string;
+  profile_json_str: string;
 }
 
 const profileModalVisible = ref(false);
@@ -171,6 +191,7 @@ const profileForm = ref<ProfileForm>({
   service_type: "llm_chat",
   safety_multiplier: "1.15",
   calibration_multiplier: "1.0",
+  profile_json_str: DEFAULT_PROFILE_JSON_STR,
 });
 const profileFormErrors = ref<Record<string, string>>({});
 const profileSaving = ref(false);
@@ -191,6 +212,7 @@ function openCreateProfile() {
     service_type: "llm_chat",
     safety_multiplier: "1.15",
     calibration_multiplier: "1.0",
+    profile_json_str: DEFAULT_PROFILE_JSON_STR,
   };
   profileFormErrors.value = {};
   profileModalVisible.value = true;
@@ -206,9 +228,45 @@ function openEditProfile(p: TokenProfile) {
     service_type: p.service_type,
     safety_multiplier: String(p.safety_multiplier),
     calibration_multiplier: String(p.calibration_multiplier),
+    profile_json_str: p.profile_json
+      ? JSON.stringify(p.profile_json, null, 2)
+      : DEFAULT_PROFILE_JSON_STR,
   };
   profileFormErrors.value = {};
   profileModalVisible.value = true;
+}
+
+function validateProfileJsonStr(jsonStr: string): string {
+  if (!jsonStr.trim()) return "profile_json 必填";
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(jsonStr) as Record<string, unknown>;
+  } catch {
+    return "JSON 格式错误，请检查语法";
+  }
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    return "必须是 JSON 对象";
+  }
+  if (!parsed.classes || typeof parsed.classes !== "object") {
+    return "缺少 classes 字段（字符类映射）";
+  }
+  const sm = parsed.safety_multiplier;
+  if (sm !== undefined && (typeof sm !== "number" || (sm as number) < 1.0)) {
+    return "safety_multiplier 必须 >= 1.0";
+  }
+  const cm = parsed.calibration_multiplier;
+  if (cm !== undefined && (typeof cm !== "number" || (cm as number) <= 0)) {
+    return "calibration_multiplier 必须 > 0";
+  }
+  const mot = parsed.message_overhead_tokens;
+  if (mot !== undefined && (typeof mot !== "number" || (mot as number) < 0)) {
+    return "message_overhead_tokens 必须为非负数";
+  }
+  const fot = parsed.fragment_overhead_tokens;
+  if (fot !== undefined && (typeof fot !== "number" || (fot as number) < 0)) {
+    return "fragment_overhead_tokens 必须为非负数";
+  }
+  return "";
 }
 
 function validateProfileForm(): boolean {
@@ -221,6 +279,8 @@ function validateProfileForm(): boolean {
   const cm = Number(profileForm.value.calibration_multiplier);
   if (!Number.isFinite(cm) || cm <= 0)
     errs.calibration_multiplier = "必须大于 0";
+  const pjErr = validateProfileJsonStr(profileForm.value.profile_json_str);
+  if (pjErr) errs.profile_json_str = pjErr;
   profileFormErrors.value = errs;
   return Object.keys(errs).length === 0;
 }
@@ -235,6 +295,16 @@ function validateProfileFieldOnBlur(field: keyof ProfileForm) {
     const n = Number(val);
     errs[field] = Number.isFinite(n) && n > 0 ? "" : "必须大于 0";
   }
+  if (field === "profile_json_str") {
+    errs[field] = validateProfileJsonStr(val as string);
+  }
+  profileFormErrors.value = errs;
+}
+
+function resetProfileJsonToDefault() {
+  profileForm.value.profile_json_str = DEFAULT_PROFILE_JSON_STR;
+  const errs = { ...profileFormErrors.value };
+  errs.profile_json_str = "";
   profileFormErrors.value = errs;
 }
 
@@ -253,6 +323,10 @@ async function submitProfileForm() {
       service_type: profileForm.value.service_type,
       safety_multiplier: Number(profileForm.value.safety_multiplier),
       calibration_multiplier: Number(profileForm.value.calibration_multiplier),
+      profile_json: JSON.parse(profileForm.value.profile_json_str) as Record<
+        string,
+        unknown
+      >,
     };
     if (profileModalIsEdit.value) {
       await updateTokenProfileApi(profileEditingId.value, payload);
@@ -1293,6 +1367,43 @@ function formatDateTime(iso: string | undefined): string {
                   {{ profileFormErrors.calibration_multiplier }}
                 </p>
               </div>
+              <div class="form-group" data-test="form-profile-json">
+                <div class="profile-json-label-row">
+                  <label class="form-label"
+                    >Token 估算配置 (profile_json) *</label
+                  >
+                  <button
+                    type="button"
+                    class="profile-json-reset-btn"
+                    data-test="profile-json-reset"
+                    @click="resetProfileJsonToDefault"
+                  >
+                    插入默认模板 / 重置为默认
+                  </button>
+                </div>
+                <p class="profile-json-helper">
+                  JSON 格式。包含
+                  classes（字符类→token_per_char）、安全倍率、校准倍率等字段。如不确定，可使用默认模板
+                </p>
+                <textarea
+                  v-model="profileForm.profile_json_str"
+                  class="profile-json-textarea"
+                  :class="{
+                    'profile-json-textarea--error':
+                      profileFormErrors.profile_json_str,
+                  }"
+                  rows="10"
+                  spellcheck="false"
+                  data-test="profile-json-textarea"
+                  @blur="validateProfileFieldOnBlur('profile_json_str')"
+                />
+                <p
+                  v-if="profileFormErrors.profile_json_str"
+                  class="field-error"
+                >
+                  {{ profileFormErrors.profile_json_str }}
+                </p>
+              </div>
             </div>
             <div class="modal-actions">
               <AppButton
@@ -2003,5 +2114,67 @@ function formatDateTime(iso: string | undefined): string {
 
 .drawer-leave-to .drawer-panel {
   transform: translateX(100%);
+}
+
+/* ---- Profile JSON editor ---- */
+.profile-json-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+}
+
+.profile-json-label-row .form-label {
+  margin-bottom: 0;
+}
+
+.profile-json-reset-btn {
+  font-size: var(--text-xs);
+  color: var(--primary);
+  background: none;
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-sm, 4px);
+  padding: 2px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.profile-json-reset-btn:hover {
+  background: var(--primary-light, #eff6ff);
+}
+
+.profile-json-helper {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  margin-bottom: var(--space-2);
+  line-height: 1.5;
+}
+
+.profile-json-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text);
+  resize: vertical;
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+
+.profile-json-textarea:focus {
+  border-color: var(--primary);
+}
+
+.profile-json-textarea--error {
+  border-color: var(--danger);
 }
 </style>
