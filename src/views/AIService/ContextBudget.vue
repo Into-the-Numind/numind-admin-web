@@ -21,8 +21,8 @@ import {
   updateContextBudgetPolicyApi,
   listContextBudgetEventsApi,
   previewContextBudgetApi,
+  listServicesApi,
 } from "@/api/ai";
-import { listServicesApi } from "@/api/ai";
 import type {
   TokenProfile,
   ContextBudgetPolicy,
@@ -301,11 +301,14 @@ const historyDrawerVisible = ref(false);
 const historyLoading = ref(false);
 const historyItems = ref<TokenProfile[]>([]);
 const historyTarget = ref<TokenProfile | null>(null);
+const historyError = ref<string | null>(null);
 
 async function openHistoryDrawer(p: TokenProfile) {
   historyTarget.value = p;
   historyDrawerVisible.value = true;
   historyLoading.value = true;
+  historyError.value = null;
+  historyItems.value = [];
   try {
     const res = await listTokenProfilesHistoryApi(
       p.provider,
@@ -315,9 +318,16 @@ async function openHistoryDrawer(p: TokenProfile) {
     historyItems.value =
       (res as unknown as { list: TokenProfile[] }).list ?? [];
   } catch (e) {
-    toast.error((e as Error).message || "加载历史失败");
+    historyError.value = (e as Error).message || "加载历史失败";
+    toast.error(historyError.value);
   } finally {
     historyLoading.value = false;
+  }
+}
+
+async function retryLoadHistory() {
+  if (historyTarget.value) {
+    await openHistoryDrawer(historyTarget.value);
   }
 }
 
@@ -458,6 +468,7 @@ const eventPageSize = 20;
 const eventFilterOperation = ref("");
 const eventFilterStatus = ref("");
 const eventFilterProvider = ref("");
+const eventFilterModel = ref<string>("");
 
 const eventColumns: Column[] = [
   { key: "id", title: "ID", width: "72px", align: "right" },
@@ -517,6 +528,7 @@ async function loadEvents() {
       operation: eventFilterOperation.value || undefined,
       status: eventFilterStatus.value || undefined,
       provider: eventFilterProvider.value || undefined,
+      model: eventFilterModel.value || undefined,
       page: eventPage.value,
       page_size: eventPageSize,
     });
@@ -680,10 +692,18 @@ watch(
     loadProfiles();
   },
 );
-watch([eventFilterOperation, eventFilterStatus, eventFilterProvider], () => {
-  eventPage.value = 1;
-  loadEvents();
-});
+watch(
+  [
+    eventFilterOperation,
+    eventFilterStatus,
+    eventFilterProvider,
+    eventFilterModel,
+  ],
+  () => {
+    eventPage.value = 1;
+    loadEvents();
+  },
+);
 
 function formatNumber(n: number | undefined | null): string {
   if (n == null) return "—";
@@ -715,6 +735,8 @@ function formatDateTime(iso: string | undefined): string {
         role="tab"
         class="tab-btn"
         :class="{ 'tab-btn--active': activeTab === tab.key }"
+        :aria-selected="activeTab === tab.key ? 'true' : 'false'"
+        :aria-controls="`tabpanel-${tab.key}`"
         @click="onTabChange(tab.key)"
       >
         {{ tab.label }}
@@ -724,7 +746,12 @@ function formatDateTime(iso: string | undefined): string {
     <!-- ============================================================
          TAB 1: Token Profiles
     ============================================================ -->
-    <div v-if="activeTab === 'profiles'" class="tab-content">
+    <div
+      v-if="activeTab === 'profiles'"
+      id="tabpanel-profiles"
+      role="tabpanel"
+      class="tab-content"
+    >
       <!-- Toolbar -->
       <div class="toolbar">
         <div class="toolbar__filters">
@@ -922,6 +949,11 @@ function formatDateTime(iso: string | undefined): string {
           <AppInput
             v-model="eventFilterProvider"
             placeholder="Provider 过滤"
+            class="filter-input"
+          />
+          <AppInput
+            v-model="eventFilterModel"
+            placeholder="按 model 过滤"
             class="filter-input"
           />
         </div>
@@ -1393,6 +1425,15 @@ function formatDateTime(iso: string | undefined): string {
             </div>
             <div class="drawer-body">
               <div v-if="historyLoading" class="skeleton-block" />
+              <div v-else-if="historyError" class="error-alert">
+                <span>{{ historyError }}</span>
+                <AppButton
+                  size="sm"
+                  variant="secondary"
+                  @click="retryLoadHistory"
+                  >重试</AppButton
+                >
+              </div>
               <div v-else-if="historyItems.length === 0" class="empty-hint">
                 暂无历史版本
               </div>
