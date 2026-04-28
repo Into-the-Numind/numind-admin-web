@@ -137,6 +137,7 @@ interface PricingForm {
   sell_output_price_per_mtok: number;
   sell_price_per_call: number;
   sell_price_per_gb: number;
+  credit_multiplier: number;
   is_active: boolean;
 }
 
@@ -158,6 +159,7 @@ const defaultForm: PricingForm = {
   sell_output_price_per_mtok: 0,
   sell_price_per_call: 0,
   sell_price_per_gb: 0,
+  credit_multiplier: 1,
   is_active: true,
 };
 
@@ -208,6 +210,12 @@ const columns: Column[] = [
   {
     key: "sell_price_per_gb",
     title: "售价(每GB)",
+    width: "90px",
+    align: "right",
+  },
+  {
+    key: "credit_multiplier",
+    title: "积分倍率",
     width: "90px",
     align: "right",
   },
@@ -274,6 +282,7 @@ function openEdit(rule: PricingRule) {
     sell_output_price_per_mtok: rule.sell_output_price_per_mtok,
     sell_price_per_call: rule.sell_price_per_call,
     sell_price_per_gb: rule.sell_price_per_gb,
+    credit_multiplier: rule.credit_multiplier ?? 1,
     is_active: rule.is_active,
   };
   modalVisible.value = true;
@@ -301,6 +310,7 @@ async function submitForm() {
         sell_output_price_per_mtok: form.value.sell_output_price_per_mtok,
         sell_price_per_call: form.value.sell_price_per_call,
         sell_price_per_gb: form.value.sell_price_per_gb,
+        credit_multiplier: form.value.credit_multiplier,
         is_active: form.value.is_active,
       };
       await updatePricingRuleApi(editingId.value, updates);
@@ -514,6 +524,10 @@ async function saveTiers() {
 
       <template #cell-sell_price_per_gb="{ value }">
         <span class="text-mono text-sell">{{ Number(value).toFixed(2) }}</span>
+      </template>
+
+      <template #cell-credit_multiplier="{ value }">
+        <span class="text-mono">{{ Number(value).toFixed(2) }}x</span>
       </template>
 
       <template #cell-margin="{ row }">
@@ -747,6 +761,25 @@ async function saveTiers() {
                   step="0.01"
                   placeholder="0"
                 />
+              </div>
+
+              <!-- 积分倍率 Section -->
+              <div class="form-group form-group--full">
+                <div class="form-section-header">积分消耗</div>
+              </div>
+              <div class="form-group form-group--full">
+                <label class="form-label">积分消耗倍率</label>
+                <AppInput
+                  v-model="form.credit_multiplier"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  max="10"
+                  placeholder="1.00"
+                />
+                <p class="form-hint">
+                  1.00 = 正常，&lt; 1 减慢积分消耗，&gt; 1 加快积分消耗
+                </p>
               </div>
 
               <div class="form-group form-group--full">
