@@ -111,6 +111,7 @@ export interface PricingRule {
   sell_output_price_per_mtok: number;
   sell_price_per_call: number;
   sell_price_per_gb: number;
+  credit_multiplier: number;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -135,6 +136,7 @@ export interface CreatePricingRuleRequest {
   sell_output_price_per_mtok?: number;
   sell_price_per_call?: number;
   sell_price_per_gb?: number;
+  credit_multiplier?: number;
   is_active?: boolean;
 }
 
@@ -151,6 +153,7 @@ export interface UpdatePricingRuleRequest {
   sell_output_price_per_mtok?: number;
   sell_price_per_call?: number;
   sell_price_per_gb?: number;
+  credit_multiplier?: number;
   is_active?: boolean;
 }
 
