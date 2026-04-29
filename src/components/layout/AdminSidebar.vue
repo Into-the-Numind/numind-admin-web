@@ -89,6 +89,12 @@ const navItems = [
     path: "/admin/b2b-billing",
   },
   { name: "credits", label: "额度管理", icon: Coins, path: "/credits" },
+  {
+    name: "credits-user-types",
+    label: "用户类型倍率",
+    icon: Sigma,
+    path: "/credits/user-types",
+  },
   { name: "orders", label: "订单管理", icon: ShoppingCart, path: "/orders" },
   {
     name: "AIServices",
