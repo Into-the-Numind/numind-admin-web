@@ -355,3 +355,38 @@ export function getTierChangeStatsApi(
     params: { from, to },
   });
 }
+
+// ====== Credit User-Type Config ======
+
+export interface CreditUserTypeConfig {
+  user_type: string;
+  credit_multiplier: number;
+  description: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreditUserTypeConfigListResponse {
+  items: CreditUserTypeConfig[];
+}
+
+export interface UpdateCreditUserTypeConfigRequest {
+  credit_multiplier?: number;
+  description?: string;
+  is_active?: boolean;
+}
+
+export function listCreditUserTypeConfigsApi() {
+  return get<CreditUserTypeConfigListResponse>("/v1/admin/credits/user-types");
+}
+
+export function updateCreditUserTypeConfigApi(
+  userType: string,
+  data: UpdateCreditUserTypeConfigRequest,
+) {
+  return put<{ user_type: string; updated_fields: number }>(
+    `/v1/admin/credits/user-types/${encodeURIComponent(userType)}`,
+    data,
+  );
+}

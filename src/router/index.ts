@@ -87,6 +87,12 @@ const router = createRouter({
           meta: { title: "额度管理" },
         },
         {
+          path: "credits/user-types",
+          name: "credits-user-types",
+          component: () => import("@/views/CreditUserTypesView.vue"),
+          meta: { title: "用户类型倍率" },
+        },
+        {
           path: "orders",
           name: "orders",
           component: () => import("@/views/OrdersView.vue"),
