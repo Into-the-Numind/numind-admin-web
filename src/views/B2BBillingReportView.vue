@@ -2,43 +2,39 @@
 /**
  * B2BBillingReportView — B2B 月度结算报表（管理端，credits-system Q3 gap-fill）
  *
- * 只读页面，使用 GET /v1/admin/b2b-billing-report?month=YYYY-MM 汇总：
- *   - 本月所有父账户通过 POST /v1/users/children/:id/grant-membership 给子账户开通的会员
- *   - 每个父账户：grants_count / amount_cents / details[]
- *   - 总金额（所有父账户 amount_cents 之和）
+ * GET /v1/admin/b2b-billing-report?month=YYYY-MM
+ * 按 by_parent 分组，可点击展开 details 明细。
+ * summary 字段直接读取服务端顶层字段（不在客户端重聚合）。
  *
- * 页面结构：
- *   - 顶部：月份选择器（type="month"，默认当前月）+ 总金额大字
- *   - DataTable：父账户一行，展开看详情（子账户 / 产品类型 / 开通时间 / 金额）
- *
- * cents → 元 统一两位小数；granted_at 复用 @/utils/format 的 formatDate
- * （slice 到 YYYY-MM-DD HH:mm，和其他管理端页面保持一致）。
+ * Plan §Task 21 / Spec §8.4
  */
 import { ref, computed, onMounted } from "vue";
 import {
   getB2BBillingReport,
   type B2BBillingReport,
   type ParentBillingRow,
+  type ParentBillingDetail,
 } from "@/api/b2b_billing";
 import DataTable, { type Column } from "@/components/common/DataTable.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import { useToast } from "@/composables/useToast";
-import { formatDate } from "@/utils/format";
-import { ChevronDown, ChevronRight, RefreshCw } from "lucide-vue-next";
+import { formatDateTime, centsToYuan } from "@/utils/datetime";
+import {
+  ChevronDown,
+  ChevronRight,
+  RefreshCw,
+  Download,
+} from "lucide-vue-next";
 
 const toast = useToast();
 
-// ---- State ----
+// ── State ─────────────────────────────────────────────────────────────────────
 const report = ref<B2BBillingReport | null>(null);
 const loading = ref(false);
 const error = ref("");
-// Expanded parent rows (by parent_user_id)
 const expanded = ref<Set<number>>(new Set());
 
-/**
- * 默认月份 = 当前月（YYYY-MM）。UTC 取当月并不必要——运营看的是国内自然月，
- * 直接用本地时区的 year/month，避免 toISOString 因为时区回退到上个月。
- */
+/** Default month = current month in local timezone (YYYY-MM). */
 function currentMonth(): string {
   const now = new Date();
   const y = now.getFullYear();
@@ -48,38 +44,37 @@ function currentMonth(): string {
 
 const selectedMonth = ref<string>(currentMonth());
 
-// ---- Derived ----
+// ── Event type Chinese mapping ─────────────────────────────────────────────────
+const eventTypeText: Record<string, string> = {
+  trial_granted: "开通体验",
+  sub_granted: "开通 Pro",
+  sub_renewed: "续费 Pro",
+  booster_granted: "购买加量包",
+};
+
+// ── Derived ───────────────────────────────────────────────────────────────────
 const rows = computed<ParentBillingRow[]>(() => report.value?.by_parent ?? []);
-const totalAmountYuan = computed(() =>
-  ((report.value?.total_amount_cents ?? 0) / 100).toFixed(2),
-);
-const totalGrants = computed(() =>
-  rows.value.reduce((sum, r) => sum + r.grants_count, 0),
-);
 
 const columns: Column[] = [
   { key: "expand", title: "", width: "48px", align: "center" },
   { key: "parent_user_id", title: "父账户 ID", width: "100px", align: "right" },
   { key: "parent_username", title: "父账户用户名", align: "left" },
-  { key: "grants_count", title: "开通数", width: "100px", align: "right" },
-  { key: "amount_cents", title: "金额（元）", width: "140px", align: "right" },
+  { key: "events_count", title: "事件数", width: "90px", align: "right" },
+  { key: "amount_cents", title: "金额（元）", width: "150px", align: "right" },
 ];
 
-// ---- Helpers ----
-function centsToYuan(cents: number): string {
-  return (cents / 100).toFixed(2);
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function productLabel(d: ParentBillingDetail): string {
+  if (d.product_type === "trial") return "体验包";
+  if (d.product_type === "booster") return "加量包";
+  return "Pro 订阅";
 }
 
-function productTypeLabel(t: "trial" | "monthly"): string {
-  return t === "trial" ? "体验" : "普通月付";
-}
-
-function detailMonthsLabel(d: {
-  product_type: "trial" | "monthly";
-  months: number | null;
-}): string {
+function durationLabel(d: ParentBillingDetail): string {
   if (d.product_type === "trial") return "3 天";
-  return d.months != null ? `${d.months} 个月` : "-";
+  if (d.product_type === "booster")
+    return d.quantity != null ? `${d.quantity} 包` : "—";
+  return d.months != null ? `${d.months} 个月` : "—";
 }
 
 function toggleExpand(parentUserId: number) {
@@ -96,7 +91,7 @@ function isExpanded(parentUserId: number): boolean {
   return expanded.value.has(parentUserId);
 }
 
-// ---- Data flow ----
+// ── Data flow ─────────────────────────────────────────────────────────────────
 async function fetchReport() {
   if (!selectedMonth.value) return;
   loading.value = true;
@@ -106,7 +101,6 @@ async function fetchReport() {
       selectedMonth.value,
     )) as unknown as B2BBillingReport;
     report.value = res;
-    // Collapse all on reload so new month doesn't inherit stale expansion.
     expanded.value = new Set();
   } catch (e) {
     error.value = (e as Error).message || "加载结算报表失败";
@@ -124,6 +118,54 @@ function onMonthChange(event: Event) {
 }
 
 onMounted(fetchReport);
+
+// ── CSV Export ────────────────────────────────────────────────────────────────
+function escapeCsvCell(val: string | number | undefined | null): string {
+  const s = String(val ?? "");
+  return `"${s.replace(/"/g, '""')}"`;
+}
+
+function exportCSV() {
+  if (!report.value) return;
+  const r = report.value;
+
+  const headers = [
+    "日期",
+    "父账户",
+    "子账户",
+    "事件类型",
+    "产品",
+    "月数/数量",
+    "金额(元)",
+  ];
+
+  const dataRows = r.by_parent.flatMap((p) =>
+    p.details.map((d) => [
+      formatDateTime(d.occurred_at),
+      p.parent_username,
+      d.child_username ?? d.user_id,
+      eventTypeText[d.event_type] ?? d.event_type,
+      productLabel(d),
+      d.months ?? d.quantity ?? "",
+      (d.amount_cents / 100).toFixed(2),
+    ]),
+  );
+
+  const csvLines = [headers, ...dataRows].map((row) =>
+    row.map(escapeCsvCell).join(","),
+  );
+  const csvStr = csvLines.join("\n");
+
+  // UTF-8 BOM for Excel compatibility
+  const bom = new Uint8Array([0xef, 0xbb, 0xbf]);
+  const blob = new Blob([bom, csvStr], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `b2b-billing-${r.month}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 </script>
 
 <template>
@@ -134,10 +176,18 @@ onMounted(fetchReport);
         <h1 class="page-title">B2B 月度结算报表</h1>
         <p class="page-subtitle">
           按月汇总所有 B 端父账户给子账户开通的会员明细，用于对公转账对账。
-          数据来自 POST /v1/users/children/:id/grant-membership 的历史记录。
         </p>
       </div>
       <div class="page-actions">
+        <AppButton
+          variant="secondary"
+          data-test="export-csv"
+          :disabled="!report || rows.length === 0"
+          @click="exportCSV"
+        >
+          <Download :size="14" />
+          导出 CSV
+        </AppButton>
         <AppButton
           variant="secondary"
           data-test="refresh"
@@ -150,7 +200,8 @@ onMounted(fetchReport);
       </div>
     </div>
 
-    <div class="summary-bar">
+    <!-- Summary bar -->
+    <div class="summary-bar" data-test="summary-bar">
       <div class="month-picker-field">
         <label class="summary-label" for="b2b-month-picker">结算月份</label>
         <input
@@ -164,22 +215,33 @@ onMounted(fetchReport);
       </div>
       <div class="summary-totals">
         <div class="summary-cell">
-          <span class="summary-label">开通总数</span>
-          <span class="summary-value">{{ totalGrants }}</span>
+          <span class="summary-label">活跃父账户</span>
+          <span class="summary-value" data-test="active-parents">{{
+            report?.active_parents_count ?? 0
+          }}</span>
+        </div>
+        <div class="summary-cell">
+          <span class="summary-label">事件总数</span>
+          <span class="summary-value" data-test="total-events">{{
+            report?.total_events_count ?? 0
+          }}</span>
         </div>
         <div class="summary-cell summary-cell--primary">
           <span class="summary-label">本月应收总额</span>
           <span class="summary-value summary-value--hero" data-test="total-yuan"
-            >¥ {{ totalAmountYuan }}</span
+            >¥ {{ centsToYuan(report?.total_amount_cents ?? 0) }}</span
           >
         </div>
       </div>
     </div>
 
+    <!-- Error alert -->
     <div v-if="error" class="error-alert" data-test="error-alert">
       {{ error }}
+      <button type="button" class="retry-btn" @click="fetchReport">重试</button>
     </div>
 
+    <!-- Main DataTable: grouped by parent -->
     <DataTable
       :columns="columns"
       :data="rows"
@@ -189,6 +251,7 @@ onMounted(fetchReport);
       :page="1"
       row-key="parent_user_id"
       empty-text="暂无本月结算记录"
+      data-test="billing-table"
     >
       <template #cell-expand="{ row }">
         <button
@@ -216,6 +279,7 @@ onMounted(fetchReport);
           <span class="parent-name">{{
             (row as ParentBillingRow).parent_username
           }}</span>
+          <!-- Expanded detail panel -->
           <div
             v-if="isExpanded((row as ParentBillingRow).parent_user_id)"
             class="details-panel"
@@ -224,11 +288,12 @@ onMounted(fetchReport);
             <table class="inner-table">
               <thead>
                 <tr>
+                  <th>日期</th>
                   <th>子账户</th>
+                  <th>事件类型</th>
                   <th>产品</th>
-                  <th>时长</th>
+                  <th>时长/数量</th>
                   <th class="align-right">金额（元）</th>
-                  <th>开通时间</th>
                 </tr>
               </thead>
               <tbody>
@@ -236,16 +301,27 @@ onMounted(fetchReport);
                   v-for="(d, i) in (row as ParentBillingRow).details"
                   :key="`${(row as ParentBillingRow).parent_user_id}-${i}`"
                 >
-                  <td>{{ d.child_username }}</td>
-                  <td>{{ productTypeLabel(d.product_type) }}</td>
-                  <td>{{ detailMonthsLabel(d) }}</td>
-                  <td class="align-right">{{ centsToYuan(d.cents) }}</td>
-                  <td class="text-muted">{{ formatDate(d.granted_at) }}</td>
+                  <td class="text-muted">
+                    {{ formatDateTime(d.occurred_at) }}
+                  </td>
+                  <td>{{ d.child_username ?? d.user_id }}</td>
+                  <td>
+                    <span class="event-badge">{{
+                      eventTypeText[d.event_type] ?? d.event_type
+                    }}</span>
+                  </td>
+                  <td>{{ productLabel(d) }}</td>
+                  <td>{{ durationLabel(d) }}</td>
+                  <td class="align-right">{{ centsToYuan(d.amount_cents) }}</td>
                 </tr>
               </tbody>
             </table>
           </div>
         </div>
+      </template>
+
+      <template #cell-events_count="{ row }">
+        {{ (row as ParentBillingRow).events_count }}
       </template>
 
       <template #cell-amount_cents="{ row }">
@@ -341,12 +417,30 @@ onMounted(fetchReport);
 }
 
 .error-alert {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
   background: var(--danger-soft, rgba(220, 53, 69, 0.08));
   color: var(--danger);
   border-radius: var(--radius-sm);
   margin-bottom: var(--space-3);
   font-size: var(--text-sm);
+}
+
+.retry-btn {
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--danger);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.retry-btn:hover {
+  background: var(--danger-soft, rgba(220, 53, 69, 0.12));
 }
 
 .expand-btn {
@@ -422,5 +516,15 @@ onMounted(fetchReport);
 .text-muted {
   color: var(--on-surface-variant);
   font-size: var(--text-xs);
+}
+
+.event-badge {
+  display: inline-block;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--surface-high);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--on-surface-variant);
 }
 </style>
