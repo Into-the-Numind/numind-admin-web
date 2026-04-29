@@ -41,78 +41,67 @@ const sampleReport = {
     {
       parent_user_id: 101,
       parent_username: "acme_admin",
-      events_count: 2,
+      grants_count: 2,
       amount_cents: 198_00,
       details: [
         {
-          event_id: 1,
-          user_id: 501,
+          child_user_id: 501,
           child_username: "alice",
-          event_type: "sub_granted" as const,
           product_type: "monthly" as const,
           months: 1,
           amount_cents: 99_00,
-          occurred_at: "2026-04-03T10:15:22Z",
-          source: "b2b_grant",
+          granted_at: "2026-04-03T10:15:22Z",
         },
         {
-          event_id: 2,
-          user_id: 502,
+          child_user_id: 502,
           child_username: "bob",
-          event_type: "sub_renewed" as const,
           product_type: "monthly" as const,
           months: 1,
           amount_cents: 99_00,
-          occurred_at: "2026-04-17T09:05:00Z",
-          source: "b2b_grant",
+          granted_at: "2026-04-17T09:05:00Z",
         },
       ],
     },
     {
       parent_user_id: 202,
       parent_username: "widgetco",
-      events_count: 1,
+      grants_count: 1,
       amount_cents: 2980,
       details: [
         {
-          event_id: 3,
-          user_id: 601,
+          child_user_id: 601,
           child_username: "carol",
-          event_type: "trial_granted" as const,
           product_type: "trial" as const,
+          months: 0,
           amount_cents: 2980,
-          occurred_at: "2026-04-10T00:00:00Z",
-          source: "b2b_grant",
+          granted_at: "2026-04-10T00:00:00Z",
         },
       ],
     },
   ],
 };
 
-// Report with a booster_granted event for event-type mapping test
-const boosterReport = {
+// Report with multi-month renewal to test "续费 Pro" mapping
+const renewalReport = {
   ...sampleReport,
   month: "2026-04",
-  total_amount_cents: 2990,
+  total_amount_cents: 2980,
   total_events_count: 1,
   active_parents_count: 1,
   by_parent: [
     {
       parent_user_id: 303,
-      parent_username: "booster_corp",
-      events_count: 1,
-      amount_cents: 2990,
+      parent_username: "renewal_corp",
+      grants_count: 1,
+      amount_cents: 2980,
       details: [
         {
-          event_id: 4,
-          user_id: 701,
+          child_user_id: 701,
           child_username: "dave",
-          event_type: "booster_granted" as const,
-          product_type: "booster" as const,
-          quantity: 1,
-          amount_cents: 2990,
-          occurred_at: "2026-04-20T12:00:00Z",
-          source: "b2b_grant",
+          product_type: "monthly" as const,
+          months: 12,
+          amount_cents: 2980,
+          granted_at: "2026-04-20T12:00:00Z",
         },
       ],
     },
@@ -184,28 +173,27 @@ describe("B2BBillingReportView — structure", () => {
   });
 });
 
-// ─── Test 2: Event-type Chinese mapping ───────────────────────────────────────
+// ─── Test 2: Event-type Chinese mapping (derived from product_type + months) ─
 describe("B2BBillingReportView — event-type mapping", () => {
-  it("maps all 4 event_type values to Chinese when rows are expanded", async () => {
-    // Mount with sampleReport which has sub_granted, sub_renewed, trial_granted
+  it("maps trial to '开通体验' and monthly to '开通 Pro' or '续费 Pro'", async () => {
+    // Mount with sampleReport which has months=1 (开通 Pro) and trial (开通体验)
     const wrapper = await mountView();
 
-    // Expand acme_admin (id 101) to see sub_granted + sub_renewed
+    // Expand acme_admin (id 101) to see months=1 → "开通 Pro"
     await wrapper.find('[data-test="row-expand-101"]').trigger("click");
     await flushPromises();
     let html = wrapper.html();
-    expect(html).toContain("开通 Pro"); // sub_granted
-    expect(html).toContain("续费 Pro"); // sub_renewed
+    expect(html).toContain("开通 Pro"); // months=1 → "开通 Pro"
 
     // Expand widgetco (id 202) to see trial_granted
     await wrapper.find('[data-test="row-expand-202"]').trigger("click");
     await flushPromises();
     html = wrapper.html();
-    expect(html).toContain("开通体验"); // trial_granted
+    expect(html).toContain("开通体验"); // product_type=trial
 
-    // Switch to booster report to verify booster_granted mapping
+    // Switch to renewal report to verify months>1 → "续费 Pro"
     (billApi.getB2BBillingReport as ReturnType<typeof vi.fn>).mockResolvedValue(
-      boosterReport,
+      renewalReport,
     );
     const picker = wrapper.find('[data-test="month-picker"]')
       .element as HTMLInputElement;
@@ -215,7 +203,7 @@ describe("B2BBillingReportView — event-type mapping", () => {
 
     await wrapper.find('[data-test="row-expand-303"]').trigger("click");
     await flushPromises();
-    expect(wrapper.html()).toContain("购买加量包"); // booster_granted
+    expect(wrapper.html()).toContain("续费 Pro"); // months=12 → "续费 Pro"
   });
 });
 
@@ -231,19 +219,16 @@ describe("B2BBillingReportView — cents formatting", () => {
         {
           parent_user_id: 999,
           parent_username: "bigcorp",
-          events_count: 1,
+          grants_count: 1,
           amount_cents: 1_234_567,
           details: [
             {
-              event_id: 10,
-              user_id: 900,
+              child_user_id: 900,
               child_username: "employee",
-              event_type: "sub_granted" as const,
               product_type: "monthly" as const,
               months: 12,
               amount_cents: 1_234_567,
-              occurred_at: "2026-04-01T00:00:00Z",
-              source: "b2b_grant",
+              granted_at: "2026-04-01T00:00:00Z",
             },
           ],
         },

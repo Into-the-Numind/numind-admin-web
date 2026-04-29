@@ -13,7 +13,7 @@ import {
   getB2BBillingReport,
   type B2BBillingReport,
   type ParentBillingRow,
-  type ParentBillingDetail,
+  type GrantDetail,
 } from "@/api/b2b_billing";
 import DataTable, { type Column } from "@/components/common/DataTable.vue";
 import AppButton from "@/components/common/AppButton.vue";
@@ -44,13 +44,15 @@ function currentMonth(): string {
 
 const selectedMonth = ref<string>(currentMonth());
 
-// ── Event type Chinese mapping ─────────────────────────────────────────────────
-const eventTypeText: Record<string, string> = {
-  trial_granted: "开通体验",
-  sub_granted: "开通 Pro",
-  sub_renewed: "续费 Pro",
-  booster_granted: "购买加量包",
-};
+// ── Event type mapping (derive from product_type + months) ─────────────────────
+function eventTypeLabel(d: GrantDetail): string {
+  if (d.product_type === "trial") return "开通体验";
+  if (d.product_type === "monthly") {
+    return d.months > 1 ? "续费 Pro" : "开通 Pro";
+  }
+  // Fallback for booster (currently not returned by backend, but keep for future use)
+  return "购买加量包";
+}
 
 // ── Derived ───────────────────────────────────────────────────────────────────
 const rows = computed<ParentBillingRow[]>(() => report.value?.by_parent ?? []);
@@ -59,22 +61,19 @@ const columns: Column[] = [
   { key: "expand", title: "", width: "48px", align: "center" },
   { key: "parent_user_id", title: "父账户 ID", width: "100px", align: "right" },
   { key: "parent_username", title: "父账户用户名", align: "left" },
-  { key: "events_count", title: "事件数", width: "90px", align: "right" },
+  { key: "grants_count", title: "事件数", width: "90px", align: "right" },
   { key: "amount_cents", title: "金额（元）", width: "150px", align: "right" },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function productLabel(d: ParentBillingDetail): string {
+function productLabel(d: GrantDetail): string {
   if (d.product_type === "trial") return "体验包";
-  if (d.product_type === "booster") return "加量包";
   return "Pro 订阅";
 }
 
-function durationLabel(d: ParentBillingDetail): string {
+function durationLabel(d: GrantDetail): string {
   if (d.product_type === "trial") return "3 天";
-  if (d.product_type === "booster")
-    return d.quantity != null ? `${d.quantity} 包` : "—";
-  return d.months != null ? `${d.months} 个月` : "—";
+  return `${d.months} 个月`;
 }
 
 function toggleExpand(parentUserId: number) {
@@ -141,12 +140,12 @@ function exportCSV() {
 
   const dataRows = r.by_parent.flatMap((p) =>
     p.details.map((d) => [
-      formatDateTime(d.occurred_at),
+      formatDateTime(d.granted_at),
       p.parent_username,
-      d.child_username ?? d.user_id,
-      eventTypeText[d.event_type] ?? d.event_type,
+      d.child_username,
+      eventTypeLabel(d),
       productLabel(d),
-      d.months ?? d.quantity ?? "",
+      d.months,
       (d.amount_cents / 100).toFixed(2),
     ]),
   );
@@ -302,13 +301,11 @@ function exportCSV() {
                   :key="`${(row as ParentBillingRow).parent_user_id}-${i}`"
                 >
                   <td class="text-muted">
-                    {{ formatDateTime(d.occurred_at) }}
+                    {{ formatDateTime(d.granted_at) }}
                   </td>
-                  <td>{{ d.child_username ?? d.user_id }}</td>
+                  <td>{{ d.child_username }}</td>
                   <td>
-                    <span class="event-badge">{{
-                      eventTypeText[d.event_type] ?? d.event_type
-                    }}</span>
+                    <span class="event-badge">{{ eventTypeLabel(d) }}</span>
                   </td>
                   <td>{{ productLabel(d) }}</td>
                   <td>{{ durationLabel(d) }}</td>
@@ -320,8 +317,8 @@ function exportCSV() {
         </div>
       </template>
 
-      <template #cell-events_count="{ row }">
-        {{ (row as ParentBillingRow).events_count }}
+      <template #cell-grants_count="{ row }">
+        {{ (row as ParentBillingRow).grants_count }}
       </template>
 
       <template #cell-amount_cents="{ row }">
