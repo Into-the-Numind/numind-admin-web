@@ -240,6 +240,7 @@ export interface ContextBudgetPolicy {
   fixed_overhead_tokens: number;
   reserved_output_tokens: number;
   safe_ratio: number;
+  charge_user: boolean;
   version: number;
   is_active: boolean;
   updated_by: string;
@@ -248,9 +249,11 @@ export interface ContextBudgetPolicy {
 }
 
 export interface UpdateContextBudgetPolicyRequest {
-  fixed_overhead_tokens?: number;
-  reserved_output_tokens?: number;
-  safe_ratio?: number;
+  fixed_overhead_tokens: number;
+  reserved_output_tokens: number;
+  safe_ratio: number;
+  charge_user: boolean;
+  change_reason?: string;
 }
 
 export interface ContextBudgetEvent {
