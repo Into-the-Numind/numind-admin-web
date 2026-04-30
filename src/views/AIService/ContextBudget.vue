@@ -428,6 +428,7 @@ const policyColumns: Column[] = [
     align: "right",
   },
   { key: "safe_ratio", title: "Safe Ratio", width: "100px", align: "right" },
+  { key: "charge_user", title: "向用户收费", width: "110px", align: "center" },
   { key: "version", title: "版本", width: "60px", align: "center" },
   { key: "updated_at", title: "更新时间", width: "150px" },
   { key: "actions", title: "操作", width: "80px", align: "right" },
@@ -454,6 +455,7 @@ interface PolicyForm {
   fixed_overhead_tokens: string;
   reserved_output_tokens: string;
   safe_ratio: string;
+  charge_user: boolean;
 }
 
 const policyModalVisible = ref(false);
@@ -462,6 +464,7 @@ const policyForm = ref<PolicyForm>({
   fixed_overhead_tokens: "512",
   reserved_output_tokens: "4096",
   safe_ratio: "0.85",
+  charge_user: true,
 });
 const policyFormErrors = ref<Record<string, string>>({});
 const policySaving = ref(false);
@@ -472,14 +475,16 @@ function openEditPolicy(p: ContextBudgetPolicy) {
     fixed_overhead_tokens: String(p.fixed_overhead_tokens),
     reserved_output_tokens: String(p.reserved_output_tokens),
     safe_ratio: String(p.safe_ratio),
+    charge_user: p.charge_user ?? true,
   };
   policyFormErrors.value = {};
   policyModalVisible.value = true;
 }
 
 function validatePolicyFieldOnBlur(field: keyof PolicyForm) {
+  if (field === "charge_user") return;
   const errs = { ...policyFormErrors.value };
-  const val = Number(policyForm.value[field]);
+  const val = Number(policyForm.value[field] as string);
   if (field === "fixed_overhead_tokens" || field === "reserved_output_tokens") {
     errs[field] = Number.isInteger(val) && val >= 0 ? "" : "必须为非负整数";
   }
@@ -517,6 +522,7 @@ async function submitPolicyForm() {
       fixed_overhead_tokens: Number(policyForm.value.fixed_overhead_tokens),
       reserved_output_tokens: Number(policyForm.value.reserved_output_tokens),
       safe_ratio: Number(policyForm.value.safe_ratio),
+      charge_user: policyForm.value.charge_user,
     });
     toast.success(`Policy [${policyEditingOperation.value}] 已更新`);
     policyModalVisible.value = false;
@@ -983,6 +989,15 @@ function formatDateTime(iso: string | undefined): string {
         </template>
         <template #cell-safe_ratio="{ row }">
           {{ row.safe_ratio }}
+        </template>
+        <template #cell-charge_user="{ row }">
+          <span
+            :class="[
+              'charge-badge',
+              row.charge_user ? 'charge-badge--on' : 'charge-badge--off',
+            ]"
+            >{{ row.charge_user ? "收费" : "免费" }}</span
+          >
         </template>
         <template #cell-version="{ row }">
           <span class="version-label">v{{ row.version }}</span>
@@ -1484,6 +1499,17 @@ function formatDateTime(iso: string | undefined): string {
                   {{ policyFormErrors.safe_ratio }}
                 </p>
               </div>
+              <div class="form-group">
+                <label class="form-label checkbox-label">
+                  <input
+                    v-model="policyForm.charge_user"
+                    type="checkbox"
+                    class="charge-checkbox"
+                  />
+                  向用户收费 (charge_user)
+                </label>
+                <p class="field-hint">仅在内部调用 / 不计费场景关闭</p>
+              </div>
             </div>
             <div class="modal-actions">
               <AppButton
@@ -1960,6 +1986,45 @@ function formatDateTime(iso: string | undefined): string {
   display: flex;
   justify-content: flex-end;
   gap: var(--space-2);
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.charge-checkbox {
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+  accent-color: var(--primary, #4f6ef7);
+}
+
+.field-hint {
+  margin-top: var(--space-1);
+  font-size: 0.75rem;
+  color: var(--text-secondary, #6b7280);
+}
+
+.charge-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.charge-badge--on {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.charge-badge--off {
+  background: #f3f4f6;
+  color: #6b7280;
 }
 
 /* ---- History drawer ---- */
