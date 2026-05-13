@@ -167,7 +167,7 @@ const router = createRouter({
         },
         // Q3: credits-system B2B 月度结算报表
         {
-          path: "admin/b2b-billing",
+          path: "b2b-billing",
           name: "B2BBillingReport",
           component: () => import("@/views/B2BBillingReportView.vue"),
           meta: { title: "B2B 月度结算" },
