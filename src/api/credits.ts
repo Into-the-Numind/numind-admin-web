@@ -60,7 +60,9 @@ export interface CreditReservation {
 
 export interface CreditUserDetail {
   account: CreditAccount;
-  packages: CreditPackage[];
+  // T9: backend GetUserDetail no longer returns packages; field is undefined.
+  // Will be removed after credit_package archival in T11.
+  packages?: CreditPackage[];
   transactions: CreditTransaction[];
   // F.4 enrichments (spec §4.4.4). Optional for back-compat with older server
   // builds that have not yet surfaced these fields.
