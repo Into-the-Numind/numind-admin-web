@@ -1,4 +1,4 @@
-import { get, post } from "./request";
+import { get } from "./request";
 
 // ====== Types ======
 
@@ -68,12 +68,6 @@ export interface CreditUserDetail {
   reservations?: CreditReservation[];
 }
 
-export interface RechargeCreditsRequest {
-  type: string;
-  total_credits: number;
-  expires_in: string;
-}
-
 // ====== API Functions ======
 
 export function listCreditUsers(offset = 0, limit = 20) {
@@ -84,8 +78,4 @@ export function listCreditUsers(offset = 0, limit = 20) {
 
 export function getCreditUserDetail(userId: number) {
   return get<CreditUserDetail>(`/v1/admin/credits/users/${userId}`);
-}
-
-export function rechargeCredits(userId: number, data: RechargeCreditsRequest) {
-  return post<void>(`/v1/admin/credits/users/${userId}/recharge`, data);
 }

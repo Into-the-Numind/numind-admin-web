@@ -3,16 +3,12 @@ import { ref, onMounted } from "vue";
 import {
   listCreditUsers,
   getCreditUserDetail,
-  rechargeCredits,
   type CreditUserListItem,
   type CreditUserDetail,
 } from "@/api/credits";
 import DataTable, { type Column } from "@/components/common/DataTable.vue";
 import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
 import StatusBadge from "@/components/common/StatusBadge.vue";
-import { Coins, RefreshCw } from "lucide-vue-next";
 import { useToast } from "@/composables/useToast";
 import { formatDate } from "@/utils/format";
 
@@ -34,14 +30,6 @@ const selectedUserId = ref(0);
 // F.4: tab inside detail modal
 type DetailTab = "overview" | "reservations";
 const activeTab = ref<DetailTab>("overview");
-
-// Recharge modal
-const rechargeVisible = ref(false);
-const rechargeUserId = ref(0);
-const rechargeType = ref("subscription");
-const rechargeCreditsAmount = ref("100");
-const rechargeExpiresIn = ref("30d");
-const rechargeProcessing = ref(false);
 
 const accountStatusMap: Record<string, { label: string; color: string }> = {
   active: { label: "正常", color: "success" },
@@ -67,20 +55,7 @@ const columns: Column[] = [
   { key: "balance", title: "额度余额", width: "100px", align: "right" },
   { key: "status", title: "账户状态", width: "90px" },
   { key: "created_at", title: "创建时间", width: "140px" },
-  { key: "actions", title: "操作", width: "160px" },
-];
-
-const typeOptions = [
-  { label: "subscription（订阅）", value: "subscription" },
-  { label: "booster（加量包）", value: "booster" },
-  { label: "trial（试用）", value: "trial" },
-];
-
-const expiresInOptions = [
-  { label: "30天", value: "30d" },
-  { label: "90天", value: "90d" },
-  { label: "180天", value: "180d" },
-  { label: "1年", value: "365d" },
+  { key: "actions", title: "操作", width: "100px" },
 ];
 
 async function fetchList() {
@@ -110,33 +85,6 @@ async function openDetail(userId: number) {
     detailVisible.value = false;
   } finally {
     detailLoading.value = false;
-  }
-}
-
-function openRecharge(userId: number) {
-  rechargeUserId.value = userId;
-  rechargeType.value = "subscription";
-  rechargeCreditsAmount.value = "100";
-  rechargeExpiresIn.value = "30d";
-  rechargeVisible.value = true;
-}
-
-async function submitRecharge() {
-  if (rechargeProcessing.value) return;
-  rechargeProcessing.value = true;
-  try {
-    await rechargeCredits(rechargeUserId.value, {
-      type: rechargeType.value,
-      total_credits: Number(rechargeCreditsAmount.value),
-      expires_in: rechargeExpiresIn.value,
-    });
-    rechargeVisible.value = false;
-    toast.success("充值成功");
-    await fetchList();
-  } catch (e) {
-    toast.error((e as Error).message || "充值失败");
-  } finally {
-    rechargeProcessing.value = false;
   }
 }
 
@@ -210,14 +158,6 @@ onMounted(fetchList);
             @click.stop="openDetail((row as CreditUserListItem).user_id)"
           >
             查看
-          </AppButton>
-          <AppButton
-            size="sm"
-            variant="ghost"
-            @click.stop="openRecharge((row as CreditUserListItem).user_id)"
-          >
-            <Coins :size="14" />
-            充值
           </AppButton>
         </div>
       </template>
@@ -439,72 +379,7 @@ onMounted(fetchList);
                 </table>
                 <p v-else class="empty-hint">暂无活跃 reservation</p>
               </section>
-
-              <div class="modal-actions">
-                <AppButton
-                  variant="primary"
-                  @click="
-                    openRecharge(selectedUserId);
-                    detailVisible = false;
-                  "
-                >
-                  <Coins :size="14" />
-                  充值额度
-                </AppButton>
-              </div>
             </template>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
-
-    <!-- Recharge Modal -->
-    <Teleport to="body">
-      <Transition name="modal">
-        <div
-          v-if="rechargeVisible"
-          class="modal-overlay"
-          @click.self="rechargeVisible = false"
-          @keydown.esc="rechargeVisible = false"
-        >
-          <div class="modal-card" role="dialog" aria-modal="true">
-            <h3 class="modal-title">充值额度（用户 #{{ rechargeUserId }}）</h3>
-
-            <div class="form-group">
-              <label class="form-label">额度包类型</label>
-              <AppSelect v-model="rechargeType" :options="typeOptions" />
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">额度数量</label>
-              <AppInput
-                v-model="rechargeCreditsAmount"
-                type="number"
-                placeholder="请输入额度数量"
-              />
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">有效期</label>
-              <AppSelect
-                v-model="rechargeExpiresIn"
-                :options="expiresInOptions"
-              />
-            </div>
-
-            <div class="modal-actions">
-              <AppButton variant="secondary" @click="rechargeVisible = false"
-                >取消</AppButton
-              >
-              <AppButton
-                variant="primary"
-                :loading="rechargeProcessing"
-                @click="submitRecharge"
-              >
-                <RefreshCw :size="14" />
-                确认充值
-              </AppButton>
-            </div>
           </div>
         </div>
       </Transition>

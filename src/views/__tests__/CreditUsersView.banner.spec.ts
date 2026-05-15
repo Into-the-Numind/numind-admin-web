@@ -63,7 +63,6 @@ vi.mock("@/api/credits", () => {
             ]
           : [],
     })),
-    rechargeCredits: vi.fn(async () => undefined),
   };
 });
 
