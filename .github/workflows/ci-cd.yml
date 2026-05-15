@@ -136,11 +136,16 @@ jobs:
               --restart unless-stopped \
               "$IMAGE"
 
-            sleep 3
-            if curl -sf http://localhost:9100/health > /dev/null 2>&1; then
-              echo "✅ Dev 部署完成，健康检查通过"
+            READY=false
+            for i in $(seq 1 10); do
+              curl -sf http://localhost:9100/health > /dev/null 2>&1 && { READY=true; break; }
+              sleep 2
+            done
+
+            if [ "$READY" = true ]; then
+              echo "✅ Dev 部署完成"
             else
-              echo "⚠️ 健康检查未通过"
+              echo "⚠️ 健康检查超时 (20s)"
               docker logs --tail 10 numind-admin-web-dev
             fi
 
@@ -178,11 +183,16 @@ jobs:
               --restart unless-stopped \
               "$IMAGE"
 
-            sleep 3
-            if curl -sf http://localhost:9101/health > /dev/null 2>&1; then
-              echo "✅ QA 部署完成，健康检查通过"
+            READY=false
+            for i in $(seq 1 10); do
+              curl -sf http://localhost:9101/health > /dev/null 2>&1 && { READY=true; break; }
+              sleep 2
+            done
+
+            if [ "$READY" = true ]; then
+              echo "✅ QA 部署完成"
             else
-              echo "⚠️ 健康检查未通过"
+              echo "⚠️ 健康检查超时 (20s)"
               docker logs --tail 10 numind-admin-web-qa
             fi
 
@@ -222,10 +232,15 @@ jobs:
               --restart unless-stopped \
               "$IMAGE"
 
-            sleep 3
-            if curl -sf http://localhost:9102/health > /dev/null 2>&1; then
-              echo "✅ Prod 部署完成，健康检查通过"
+            READY=false
+            for i in $(seq 1 10); do
+              curl -sf http://localhost:9102/health > /dev/null 2>&1 && { READY=true; break; }
+              sleep 2
+            done
+
+            if [ "$READY" = true ]; then
+              echo "✅ Prod 部署完成"
             else
-              echo "⚠️ 健康检查未通过"
+              echo "⚠️ 健康检查超时 (20s)"
               docker logs --tail 10 numind-admin-web-prod
             fi
