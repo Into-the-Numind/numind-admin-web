@@ -5,11 +5,9 @@ export interface User {
   username: string
   nickname: string
   phone: string
-  tier_expires: string
   status: number
   is_admin: boolean
   total_sop_runs: number
-  monthly_sop_runs: number
   parent_user_id: number | null
   created_at: string
   last_login: string
