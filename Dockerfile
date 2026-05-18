@@ -5,7 +5,8 @@ WORKDIR /app
 
 # 复制依赖文件
 COPY package*.json ./
-RUN npm ci
+# 使用 npmmirror 镜像加速国内构建（避免 registry.npmjs.org 超时）
+RUN npm config set registry https://registry.npmmirror.com && npm ci
 
 # 复制源码并构建
 COPY . .
