@@ -192,16 +192,6 @@ onMounted(fetchList);
             <div v-if="detailLoading" class="modal-loading">加载中...</div>
 
             <template v-else-if="detail">
-              <!-- F.4: Legacy-tier banner (spec §4.4.4) -->
-              <div
-                v-if="detail.billing_mode === 'legacy_tier'"
-                class="banner legacy-tier"
-                data-test="legacy-tier-banner"
-              >
-                此用户为 <code>billing_mode=legacy_tier</code>（Grandfathering
-                老会员）。 credit_package 自然过期不扣减，到期升级后进入积分制。
-              </div>
-
               <!-- Account summary -->
               <div class="detail-summary">
                 <span
@@ -478,29 +468,6 @@ onMounted(fetchList);
   font-size: var(--text-sm);
   text-align: center;
   padding: var(--space-4);
-}
-
-/* F.4: legacy-tier banner + tab bar */
-.banner {
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-sm);
-  font-size: var(--text-sm);
-  line-height: 1.5;
-  margin-bottom: var(--space-3);
-}
-
-.banner.legacy-tier {
-  background: var(--warning-soft, rgba(255, 196, 0, 0.12));
-  color: var(--on-surface);
-  border-left: 3px solid var(--warning, #d97706);
-}
-
-.banner code {
-  font-family: ui-monospace, "SF Mono", monospace;
-  background: rgba(0, 0, 0, 0.06);
-  padding: 0 4px;
-  border-radius: 3px;
-  font-size: var(--text-xs);
 }
 
 .tab-bar {

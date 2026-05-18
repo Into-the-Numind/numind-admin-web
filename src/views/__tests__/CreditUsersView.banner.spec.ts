@@ -1,10 +1,12 @@
 /**
- * Unit tests for CreditUsersView banner enhancement (Track F.4).
+ * Unit tests for CreditUsersView (Track F.4).
  *
  * Covers:
- *  - Legacy tier banner renders when user.billing_mode === 'legacy_tier'
- *  - Banner hidden when billing_mode !== 'legacy_tier'
  *  - "活跃 Reservation" tab appears and lists status='reserved' reservations
+ *
+ * Note: legacy-tier banner tests were removed in the 2026-05
+ * legacy-system-deprecation refactor (T2). billing_mode is now always
+ * "credits"; the banner has been deleted.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount, flushPromises } from "@vue/test-utils";
@@ -33,35 +35,31 @@ vi.mock("@/api/credits", () => {
       ],
       total: 1,
     })),
-    getCreditUserDetail: vi.fn(async (userId: number) => ({
+    getCreditUserDetail: vi.fn(async (_userId: number) => ({
       account: sampleAccount,
       packages: [],
       transactions: [],
-      // Enrichments added in F.4:
-      billing_mode: userId === 2 ? "credits" : "legacy_tier",
-      reservations:
-        userId === 1
-          ? [
-              {
-                id: 1001,
-                user_id: 1,
-                status: "reserved",
-                amount: 15,
-                created_at: "2026-04-18T02:00:00Z",
-                ref_type: "sop_run",
-                ref_id: "run-abc",
-              },
-              {
-                id: 1002,
-                user_id: 1,
-                status: "reserved",
-                amount: 8,
-                created_at: "2026-04-18T02:05:00Z",
-                ref_type: "sop_run",
-                ref_id: "run-def",
-              },
-            ]
-          : [],
+      billing_mode: "credits",
+      reservations: [
+        {
+          id: 1001,
+          user_id: 1,
+          status: "reserved",
+          amount: 15,
+          created_at: "2026-04-18T02:00:00Z",
+          ref_type: "sop_run",
+          ref_id: "run-abc",
+        },
+        {
+          id: 1002,
+          user_id: 1,
+          status: "reserved",
+          amount: 8,
+          created_at: "2026-04-18T02:05:00Z",
+          ref_type: "sop_run",
+          ref_id: "run-def",
+        },
+      ],
     })),
   };
 });
@@ -91,47 +89,7 @@ beforeEach(() => {
   document.body.innerHTML = "";
 });
 
-describe("CreditUsersView — F.4 legacy_tier banner", () => {
-  it("renders legacy_tier banner when user detail has billing_mode=legacy_tier", async () => {
-    const wrapper = await mountView();
-    // Open detail for user 1 (billing_mode = legacy_tier in mock)
-    await wrapper.find('[data-test="row-view-1"]').trigger("click");
-    await flushPromises();
-    const banner = document.body.querySelector(
-      '[data-test="legacy-tier-banner"]',
-    );
-    expect(banner).not.toBeNull();
-    expect(banner!.textContent).toContain("legacy_tier");
-  });
-
-  it("does not render legacy_tier banner when billing_mode=credits", async () => {
-    // swap mock: same row but detail returns credits
-    const creditsApi = await import("@/api/credits");
-    (
-      creditsApi.getCreditUserDetail as ReturnType<typeof vi.fn>
-    ).mockImplementationOnce(async () => ({
-      account: {
-        id: 10,
-        user_id: 1,
-        balance: 100,
-        status: "active",
-        created_at: "2026-04-01T00:00:00Z",
-        updated_at: "2026-04-01T00:00:00Z",
-      },
-      packages: [],
-      transactions: [],
-      billing_mode: "credits",
-      reservations: [],
-    }));
-    const wrapper = await mountView();
-    await wrapper.find('[data-test="row-view-1"]').trigger("click");
-    await flushPromises();
-    const banner = document.body.querySelector(
-      '[data-test="legacy-tier-banner"]',
-    );
-    expect(banner).toBeNull();
-  });
-
+describe("CreditUsersView — F.4 reservations tab", () => {
   it("renders 活跃 Reservation tab listing status='reserved' rows", async () => {
     const wrapper = await mountView();
     await wrapper.find('[data-test="row-view-1"]').trigger("click");

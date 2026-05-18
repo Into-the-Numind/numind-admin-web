@@ -66,7 +66,7 @@ export interface CreditUserDetail {
   transactions: CreditTransaction[];
   // F.4 enrichments (spec §4.4.4). Optional for back-compat with older server
   // builds that have not yet surfaced these fields.
-  billing_mode?: "credits" | "legacy_tier";
+  billing_mode?: "credits";
   reservations?: CreditReservation[];
 }
 

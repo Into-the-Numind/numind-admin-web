@@ -22,7 +22,6 @@ import {
   ScrollText,
   Server,
   Sigma,
-  Wrench,
   Landmark,
 } from "lucide-vue-next";
 
@@ -126,13 +125,6 @@ const navItems = [
     label: "估算系数",
     icon: Sigma,
     path: "/ai-services/coefficients",
-  },
-  // F.4: one-off migration tools (system tools group)
-  {
-    name: "Migrations",
-    label: "迁移工具",
-    icon: Wrench,
-    path: "/system-tools/migrations",
   },
 ];
 
