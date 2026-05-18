@@ -5,7 +5,6 @@ export interface User {
   username: string
   nickname: string
   phone: string
-  user_tier: string
   tier_expires: string
   status: number
   is_admin: boolean
@@ -25,7 +24,6 @@ export interface UserListParams {
   offset?: number
   limit?: number
   search?: string
-  tier?: string
   status?: number | string
 }
 
@@ -43,10 +41,6 @@ export function updateUserApi(id: number, data: Partial<Pick<User, 'nickname' | 
 
 export function updateUserStatusApi(id: number, status: number) {
   return put<void>(`/v1/admin/users/${id}/status`, { status })
-}
-
-export function updateUserTierApi(id: number, tier: string, months: number) {
-  return put<void>(`/v1/admin/users/${id}/tier`, { tier, months })
 }
 
 export function resetPasswordApi(id: number) {

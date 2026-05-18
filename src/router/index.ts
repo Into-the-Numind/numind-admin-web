@@ -159,12 +159,6 @@ const router = createRouter({
           component: () => import("@/views/EstimationCoefficientView.vue"),
           meta: { title: "估算系数" },
         },
-        {
-          path: "system-tools/migrations",
-          name: "Migrations",
-          component: () => import("@/views/MigrationsView.vue"),
-          meta: { title: "迁移工具" },
-        },
         // Q3: credits-system B2B 月度结算报表
         {
           path: "b2b-billing",

@@ -17,8 +17,6 @@
  *   - POST   /v1/admin/estimation-coefficients
  *   - PUT    /v1/admin/estimation-coefficients/:id
  *   - DELETE /v1/admin/estimation-coefficients/:id
- *   - GET    /v1/admin/migrations/billing-mode-init/status
- *   - POST   /v1/admin/migrations/billing-mode-init
  *
  * Responses follow the project's standard `core.WriteResponse` envelope
  * `{ code: 0, message: 'ok', data: ... }` so the existing axios interceptor in
@@ -34,15 +32,12 @@ import type {
   ListCoefficientsResp,
   UpdateCoefficientReq,
 } from "@/api/coefficients";
-import type { MigrationStatusResp } from "@/api/migrations";
 
 // ---- In-memory store ----
 
 interface MockState {
   coefficients: EstimationCoefficient[];
   nextCoefId: number;
-  migrationExecuted: boolean;
-  migrationResult: MigrationStatusResp;
 }
 
 function seedCoefficients(): EstimationCoefficient[] {
@@ -99,17 +94,6 @@ function seedCoefficients(): EstimationCoefficient[] {
 const state: MockState = {
   coefficients: seedCoefficients(),
   nextCoefId: 4,
-  migrationExecuted: false,
-  migrationResult: {
-    already_executed: false,
-    migrated_count: 0,
-    pre_migration_stats: {
-      standard_in_period: 42,
-      premium_in_period: 7,
-      trial_in_period: 3,
-      total_candidates: 52,
-    },
-  },
 };
 
 // ---- Handler implementations ----
@@ -270,27 +254,6 @@ function deleteCoefficientHandler(
   return ok(null, config);
 }
 
-function getMigrationStatusHandler(config: InternalAxiosRequestConfig) {
-  return ok(state.migrationResult, config);
-}
-
-function executeMigrationHandler(config: InternalAxiosRequestConfig) {
-  if (state.migrationExecuted) {
-    return ok(state.migrationResult, config);
-  }
-  state.migrationExecuted = true;
-  const total =
-    state.migrationResult.pre_migration_stats?.total_candidates ?? 0;
-  state.migrationResult = {
-    already_executed: true,
-    executed_at: new Date().toISOString(),
-    executed_by: "mock-admin",
-    pre_migration_stats: state.migrationResult.pre_migration_stats,
-    migrated_count: total,
-  };
-  return ok(state.migrationResult, config);
-}
-
 // ---- Router ----
 
 interface Route {
@@ -324,16 +287,6 @@ const routes: Route[] = [
     method: "DELETE",
     pattern: /^\/v1\/admin\/estimation-coefficients\/(\d+)(?:\?|$)/,
     handler: deleteCoefficientHandler,
-  },
-  {
-    method: "GET",
-    pattern: /^\/v1\/admin\/migrations\/billing-mode-init\/status(?:\?|$)/,
-    handler: getMigrationStatusHandler,
-  },
-  {
-    method: "POST",
-    pattern: /^\/v1\/admin\/migrations\/billing-mode-init(?:\?|$)/,
-    handler: executeMigrationHandler,
   },
 ];
 
