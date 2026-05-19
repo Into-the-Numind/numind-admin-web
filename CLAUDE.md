@@ -73,4 +73,19 @@ src/
 
 ---
 
-*最后更新：2026-04-04*
+## §6 部署命令（新链路，2026-05-19 起）
+
+| 命令 | 干什么 |
+|------|--------|
+| `/deploy-dev` | 当前代码 → dev 管理后台（http://49.233.219.254:9100）|
+| `/deploy-prod` | 需 `v*` git tag → prod 管理后台 |
+
+底层 `scripts/cicd/release.sh`（Mac 端）→ rsync 到构建机（成都）→ npm build → push TCR（广州）→ SSH 部署机替换容器。部署后自动清理旧镜像。prod 健康检查失败自动 rollback。
+
+老链路（GH Actions + DockerHub）**已禁用，yaml 保留作 fallback**，详见 `.github/workflows/ci-cd.yml` 顶部注释。
+
+完整流程见根目录 `CLAUDE.md §5`。
+
+---
+
+*最后更新：2026-05-19（部署链路从 GH Actions+DockerHub 切到本地构建+TCR）*
