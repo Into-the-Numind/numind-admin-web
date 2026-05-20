@@ -81,11 +81,13 @@ const navItems = [
     path: "/billing/pricing",
   },
   // Q3: credits-system B2B 月度结算报表（运营月末对账用）
+  // Path must align with router/index.ts (router's parent route is "/" not "/admin").
+  // Earlier "/admin/b2b-billing" produced 404 — fixed in b2b-billing-rules-rewrite hotfix.
   {
     name: "B2BBillingReport",
     label: "B2B 月度结算",
     icon: Landmark,
-    path: "/admin/b2b-billing",
+    path: "/b2b-billing",
   },
   { name: "credits", label: "额度管理", icon: Coins, path: "/credits" },
   {
