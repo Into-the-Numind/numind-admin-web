@@ -23,6 +23,8 @@ import {
   Server,
   Sigma,
   Landmark,
+  Bot,
+  Activity,
 } from "lucide-vue-next";
 
 const props = defineProps<{ collapsed: boolean }>();
@@ -127,6 +129,14 @@ const navItems = [
     label: "估算系数",
     icon: Sigma,
     path: "/ai-services/coefficients",
+  },
+  // Feature #10: agent-mode-configurator-ux
+  { name: "agents", label: "AI 助手", icon: Bot, path: "/agents" },
+  {
+    name: "agent-monitoring",
+    label: "Agent 监控",
+    icon: Activity,
+    path: "/agent-monitoring",
   },
 ];
 

@@ -166,6 +166,53 @@ const router = createRouter({
           component: () => import("@/views/B2BBillingReportView.vue"),
           meta: { title: "B2B 月度结算" },
         },
+        // AI Agent 助手 (feature #10 agent-mode-configurator-ux)
+        {
+          // Builder in create mode — mounted at /agents/builder?from=scratch|template:N|copy:N
+          // AgentCreateChoose and TemplateGallery redirect here with the query param.
+          path: "agents/builder",
+          name: "agents-builder",
+          component: () => import("@/views/agent/AgentBuilder.vue"),
+          meta: { title: "创建助手" },
+        },
+        {
+          path: "agents",
+          name: "agents",
+          component: () => import("@/views/agent/AgentList.vue"),
+          meta: { title: "AI 助手" },
+        },
+        {
+          path: "agents/new",
+          name: "agents-new",
+          component: () => import("@/views/agent/AgentCreateChoose.vue"),
+          meta: { title: "创建助手" },
+        },
+        {
+          path: "agents/new/from-template",
+          name: "agents-from-template",
+          component: () => import("@/views/agent/TemplateGallery.vue"),
+          meta: { title: "选择模板" },
+        },
+        {
+          path: "agents/:id",
+          name: "agents-detail",
+          component: () => import("@/views/agent/AgentDetail.vue"),
+          props: true,
+          meta: { title: "助手详情" },
+        },
+        {
+          path: "agents/:id/edit",
+          name: "agents-edit",
+          component: () => import("@/views/agent/AgentEdit.vue"),
+          props: true,
+          meta: { title: "编辑助手" },
+        },
+        {
+          path: "agent-monitoring",
+          name: "agent-monitoring",
+          component: () => import("@/views/agent/AgentMonitoring.vue"),
+          meta: { title: "Agent 监控" },
+        },
       ],
     },
     {
