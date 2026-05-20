@@ -55,13 +55,13 @@ function isImageUrl(iconUrl: string): boolean {
 
 function selectTemplate(template: SkillTemplate) {
   router.push({
-    path: "/agents/new",
+    path: "/agents/builder",
     query: { from: `template:${template.id}` },
   });
 }
 
 function goScratch() {
-  router.push({ path: "/agents/new", query: { from: "scratch" } });
+  router.push({ path: "/agents/builder", query: { from: "scratch" } });
 }
 
 function cancel() {

@@ -18,7 +18,7 @@ function handleFromTemplate() {
 }
 
 function handleFromScratch() {
-  router.push({ path: "/agents/new", query: { from: "scratch" } });
+  router.push({ path: "/agents/builder", query: { from: "scratch" } });
 }
 
 async function openCopyModal() {
@@ -39,7 +39,7 @@ function closeCopyModal() {
 
 function selectAgentToCopy(agent: Agent) {
   showCopyModal.value = false;
-  router.push({ path: "/agents/new", query: { from: `copy:${agent.id}` } });
+  router.push({ path: "/agents/builder", query: { from: `copy:${agent.id}` } });
 }
 
 function retryFetchList() {

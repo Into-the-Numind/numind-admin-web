@@ -168,6 +168,14 @@ const router = createRouter({
         },
         // AI Agent 助手 (feature #10 agent-mode-configurator-ux)
         {
+          // Builder in create mode — mounted at /agents/builder?from=scratch|template:N|copy:N
+          // AgentCreateChoose and TemplateGallery redirect here with the query param.
+          path: "agents/builder",
+          name: "agents-builder",
+          component: () => import("@/views/agent/AgentBuilder.vue"),
+          meta: { title: "创建助手" },
+        },
+        {
           path: "agents",
           name: "agents",
           component: () => import("@/views/agent/AgentList.vue"),
