@@ -25,6 +25,7 @@ import {
   Landmark,
   Bot,
   Activity,
+  ShieldCheck,
 } from "lucide-vue-next";
 
 const props = defineProps<{ collapsed: boolean }>();
@@ -137,6 +138,13 @@ const navItems = [
     label: "Agent 监控",
     icon: Activity,
     path: "/agent-monitoring",
+  },
+  // Phase C: compliance rule management (feature agent-e2e-rollout)
+  {
+    name: "compliance-rules",
+    label: "合规规则",
+    icon: ShieldCheck,
+    path: "/compliance-rules",
   },
 ];
 

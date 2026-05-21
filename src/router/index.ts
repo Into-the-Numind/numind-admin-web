@@ -213,6 +213,25 @@ const router = createRouter({
           component: () => import("@/views/agent/AgentMonitoring.vue"),
           meta: { title: "Agent 监控" },
         },
+        // Phase C: compliance rule CRUD (feature agent-e2e-rollout)
+        {
+          path: "compliance-rules",
+          name: "compliance-rule-list",
+          component: () => import("@/views/compliance/ComplianceRuleList.vue"),
+          meta: { title: "合规规则" },
+        },
+        {
+          path: "compliance-rules/new",
+          name: "compliance-rule-new",
+          component: () => import("@/views/compliance/ComplianceRuleForm.vue"),
+          meta: { title: "新增合规规则" },
+        },
+        {
+          path: "compliance-rules/:id",
+          name: "compliance-rule-edit",
+          component: () => import("@/views/compliance/ComplianceRuleForm.vue"),
+          meta: { title: "编辑合规规则" },
+        },
       ],
     },
     {
