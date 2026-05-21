@@ -23,7 +23,6 @@ import {
   Server,
   Sigma,
   Landmark,
-  Bot,
   Activity,
   ShieldCheck,
 } from "lucide-vue-next";
@@ -131,8 +130,8 @@ const navItems = [
     icon: Sigma,
     path: "/ai-services/coefficients",
   },
-  // Feature #10: agent-mode-configurator-ux
-  { name: "agents", label: "AI 助手", icon: Bot, path: "/agents" },
+  // Agent 配置者 UX 已搬到 numind-web-v3（agent-mode-configurator-relocate, 2026-05-22）
+  // 此处仅保留 Numind 员工监控 — admin_token /v1/admin/agent-runs 端点
   {
     name: "agent-monitoring",
     label: "Agent 监控",
