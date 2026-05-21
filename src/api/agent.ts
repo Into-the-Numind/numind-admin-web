@@ -1,11 +1,16 @@
 // API wrappers for /v1/agent/skills/* (9 endpoints, user_token middleware).
 // Backend: numind-server feature #5 agent-mode-skill-system (merged e05498b6).
 // Parent-account only — child accounts receive HTTP 403 from backend biz layer.
+//
+// Admin monitoring endpoints (admin_token middleware):
+//   GET  /v1/admin/agent-runs        — list runs (M-C4a backend)
+//   POST /v1/admin/agent-runs/:id/cancel — force cancel (M-C3b backend)
 
 import { get, post, patch, del } from "./request";
 import type {
   Agent,
   AgentHistory,
+  AgentRunDTO,
   SkillTemplate,
   CreateAgentPayload,
   PatchAgentPayload,
@@ -68,4 +73,27 @@ export function toggleAgentAdvancedApi(id: number): Promise<Agent> {
 // 9. GET    /v1/agent/skill-templates              — Built-in templates (no pagination)
 export function listSkillTemplatesApi(): Promise<SkillTemplate[]> {
   return get<SkillTemplate[]>("/v1/agent/skill-templates");
+}
+
+// ============================================================
+// Admin monitoring endpoints (admin_token middleware)
+// ============================================================
+
+export interface ListRunsParams {
+  status?: "running" | "terminated" | "cancelled";
+  page?: number;
+  page_size?: number;
+  parent_user_id?: number;
+}
+
+// GET /v1/admin/agent-runs — list agent runs with optional filters (M-C4a)
+export function listAgentRunsApi(
+  params: ListRunsParams = {},
+): Promise<ListResponse<AgentRunDTO>> {
+  return get<ListResponse<AgentRunDTO>>("/v1/admin/agent-runs", { params });
+}
+
+// POST /v1/admin/agent-runs/:id/cancel — force-cancel a running agent run (M-C3b)
+export function cancelAgentRunApi(id: number): Promise<void> {
+  return post<void>(`/v1/admin/agent-runs/${id}/cancel`);
 }
