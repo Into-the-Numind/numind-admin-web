@@ -37,3 +37,6 @@ coverage
 
 # Playwright 截图产物
 /e2e/screenshots/
+
+# NDF v3 per-worktree state file (lives in worktree root, never committed)
+.ndf-active
