@@ -1,12 +1,17 @@
 # 构建阶段
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
 # 复制依赖文件
 COPY package*.json ./
 # 使用 npmmirror 镜像加速国内构建（避免 registry.npmjs.org 超时）
-RUN npm config set registry https://registry.npmmirror.com && npm ci
+# Use `npm install --no-audit --no-fund` instead of `npm ci` to tolerate
+# minor lockfile drift between dev machines (node 24/npm 11) and the build
+# container (node 20/npm 10). The lockfile still pins exact versions for
+# determinism; npm install honors it but doesn't fail on transitive resolution
+# differences.
+RUN npm config set registry https://registry.npmmirror.com && npm install --no-audit --no-fund
 
 # 复制源码并构建
 COPY . .
