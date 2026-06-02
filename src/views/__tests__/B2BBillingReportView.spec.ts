@@ -81,7 +81,8 @@ const sampleReport = {
   ],
 };
 
-// Report with multi-month renewal to test "续费 Pro" mapping
+// Report with a 12-month annual grant: verifies it labels as "开通 Pro"
+// (the old `months > 1` heuristic wrongly labelled annuals as "续费 Pro").
 const renewalReport = {
   ...sampleReport,
   month: "2026-04",
@@ -175,7 +176,7 @@ describe("B2BBillingReportView — structure", () => {
 
 // ─── Test 2: Event-type Chinese mapping (derived from product_type + months) ─
 describe("B2BBillingReportView — event-type mapping", () => {
-  it("maps trial to '开通体验' and monthly to '开通 Pro' or '续费 Pro'", async () => {
+  it("maps trial to '开通体验' and all monthly grants (incl. 12-month annual) to '开通 Pro'", async () => {
     // Mount with sampleReport which has months=1 (开通 Pro) and trial (开通体验)
     const wrapper = await mountView();
 
@@ -191,7 +192,7 @@ describe("B2BBillingReportView — event-type mapping", () => {
     html = wrapper.html();
     expect(html).toContain("开通体验"); // product_type=trial
 
-    // Switch to renewal report to verify months>1 → "续费 Pro"
+    // Switch to the annual (12-month) report: must label "开通 Pro", NOT "续费 Pro".
     (billApi.getB2BBillingReport as ReturnType<typeof vi.fn>).mockResolvedValue(
       renewalReport,
     );
@@ -203,7 +204,8 @@ describe("B2BBillingReportView — event-type mapping", () => {
 
     await wrapper.find('[data-test="row-expand-303"]').trigger("click");
     await flushPromises();
-    expect(wrapper.html()).toContain("续费 Pro"); // months=12 → "续费 Pro"
+    expect(wrapper.html()).toContain("开通 Pro"); // months=12 → "开通 Pro" (annual opening)
+    expect(wrapper.html()).not.toContain("续费"); // no more months-based 续费 guess
   });
 });
 
