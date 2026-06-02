@@ -44,12 +44,15 @@ function currentMonth(): string {
 
 const selectedMonth = ref<string>(currentMonth());
 
-// ── Event type mapping (derive from product_type + months) ─────────────────────
+// ── Event type mapping ──────────────────────────────────────────────────────
+// Backend GrantDetail carries no event_type, so the report cannot distinguish
+// 开通 (sub_granted) from 续费 (sub_renewed). The old `months > 1` heuristic was
+// wrong both ways — it mislabelled 12-month annual grants (an opening) as "续费"
+// and would mislabel a 1-month renewal as "开通". Every parent-side settlement row
+// is treated as an "开通"; the grant duration is shown separately via durationLabel.
 function eventTypeLabel(d: GrantDetail): string {
   if (d.product_type === "trial") return "开通体验";
-  if (d.product_type === "monthly") {
-    return d.months > 1 ? "续费 Pro" : "开通 Pro";
-  }
+  if (d.product_type === "monthly") return "开通 Pro";
   // Fallback for booster (currently not returned by backend, but keep for future use)
   return "购买加量包";
 }
