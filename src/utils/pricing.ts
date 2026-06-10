@@ -32,7 +32,9 @@ export function billingModeLabel(rule: PricingRule): string {
   if ((rule.price_per_gb ?? 0) > 0) {
     return "按量计费";
   }
-  return "未配置";
+  // A rule with all prices == 0 is a configured FREE model (no charge), not an
+  // unconfigured one — the "no rule at all" case has its own UI branch.
+  return "免费";
 }
 
 export function billingModeCss(rule: PricingRule): string {
@@ -45,5 +47,8 @@ export function billingModeCss(rule: PricingRule): string {
   if ((rule.price_per_call ?? 0) > 0) {
     return "pricing-badge--call";
   }
-  return "pricing-badge--flat";
+  if ((rule.price_per_gb ?? 0) > 0) {
+    return "pricing-badge--flat";
+  }
+  return "pricing-badge--free";
 }
