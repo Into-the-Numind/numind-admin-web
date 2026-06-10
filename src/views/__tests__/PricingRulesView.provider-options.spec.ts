@@ -9,13 +9,14 @@
  * constant in billingMaps.ts that has to be hand-synced with the DB. The
  * backend accepts any provider string, so this was purely a blind dropdown.
  *
- * This test mocks listProvidersApi to return `agnes-ai` and asserts the create
- * form offers it. It FAILS against the hardcoded-list version (no agnes-ai
- * option) and passes once the dropdown sources from the live provider list.
+ * The first test is the Rule 11 reproduction (FAIL → PASS across the fix). The
+ * other two are regression guards (existing providers preserved; graceful
+ * degradation when the provider API is down).
  *
  * Note: the create modal is <Teleport to="body">, so its <option> elements
- * render into document.body (we mount with attachTo: document.body) — assertions
- * query the document, not the wrapper subtree.
+ * render into document.body (we mount with attachTo: document.body). The
+ * provider <select> is located by its "供应商" label so assertions don't pick up
+ * options from the sibling service-type / billing-mode selects.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { mount, flushPromises, type VueWrapper } from "@vue/test-utils";
@@ -58,6 +59,7 @@ vi.mock("@/composables/useToast", () => ({
 }));
 
 import PricingRulesView from "../PricingRulesView.vue";
+import { listProvidersApi } from "@/api/ai";
 
 let wrapper: VueWrapper | null = null;
 
@@ -82,8 +84,15 @@ async function mountAndOpenCreate() {
   await flushPromises();
 }
 
-function optionValues(): string[] {
-  return Array.from(document.querySelectorAll("option"))
+// Option values of the 供应商 <select> only (located via its label), so we
+// don't accidentally match options from the service-type / billing-mode selects.
+function providerOptionValues(): string[] {
+  const label = Array.from(document.querySelectorAll("label")).find((l) =>
+    l.textContent?.includes("供应商"),
+  );
+  const select = label?.closest(".form-group")?.querySelector("select");
+  if (!select) throw new Error("provider select not found");
+  return Array.from(select.querySelectorAll("option"))
     .map((o) => o.getAttribute("value") ?? "")
     .filter(Boolean);
 }
@@ -101,15 +110,28 @@ afterEach(() => {
 describe("PricingRulesView provider dropdown (regression: missing agnes-ai)", () => {
   it("offers a newly created provider (agnes-ai) in the create form", async () => {
     await mountAndOpenCreate();
-    expect(optionValues()).toContain("agnes-ai");
+    // Rule 11 reproduction — FAILS against the old hardcoded list.
+    expect(providerOptionValues()).toContain("agnes-ai");
   });
 
   it("still offers existing LLM providers and non-LLM billing entities", async () => {
+    // Regression guard — also passed against the old hardcoded list.
     await mountAndOpenCreate();
-    const opts = optionValues();
-    // Existing llm_provider from the live list.
-    expect(opts).toContain("dmxapi");
-    // Non-LLM billing entity not in llm_provider but used by pricing rules.
-    expect(opts).toContain("dashvector");
+    const opts = providerOptionValues();
+    expect(opts).toContain("dmxapi"); // live llm_provider
+    expect(opts).toContain("dashvector"); // non-LLM billing entity
+  });
+
+  it("falls back to the non-LLM billing entities when the provider API fails", async () => {
+    vi.mocked(listProvidersApi).mockRejectedValueOnce(
+      new Error("network down"),
+    );
+    await mountAndOpenCreate();
+    const opts = providerOptionValues();
+    // Live list unavailable → no agnes-ai, but the static extras still selectable.
+    expect(opts).not.toContain("agnes-ai");
+    expect(opts).toEqual(
+      expect.arrayContaining(["cos", "vikingdb", "dashvector"]),
+    );
   });
 });
