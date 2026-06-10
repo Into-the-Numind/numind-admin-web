@@ -13,8 +13,8 @@ import {
   type PricingRuleTier,
   type TierInput,
 } from "@/api/billing";
-import { listServicesApi } from "@/api/ai";
-import type { AIService } from "@/types/ai";
+import { listServicesApi, listProvidersApi } from "@/api/ai";
+import type { AIService, ProviderDTO } from "@/types/ai";
 import DataTable, { type Column } from "@/components/common/DataTable.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
@@ -25,7 +25,7 @@ import { useToast } from "@/composables/useToast";
 import {
   serviceTypeLabels,
   serviceTypeFormOptions,
-  providerFormOptions,
+  buildProviderFormOptions,
   providerLabels,
   formatMarginRate,
 } from "@/constants/billingMaps";
@@ -119,6 +119,23 @@ async function fetchServices() {
     // non-critical — association display degrades gracefully
   }
 }
+
+// Live llm_provider list — drives the 供应商 dropdown so any provider created
+// via admin「新增供应商」appears automatically (no hand-synced constant).
+const providers = ref<ProviderDTO[]>([]);
+
+async function fetchProviders() {
+  try {
+    const res = await listProvidersApi();
+    providers.value = res.list ?? [];
+  } catch {
+    // non-critical — dropdown falls back to the non-LLM billing entities only
+  }
+}
+
+const providerFormOptions = computed(() =>
+  buildProviderFormOptions(providers.value),
+);
 
 // Modal
 const modalVisible = ref(false);
@@ -361,7 +378,7 @@ async function toggleActive(rule: PricingRule) {
 
 watch(page, fetchRules);
 onMounted(async () => {
-  await Promise.all([fetchRules(), fetchServices()]);
+  await Promise.all([fetchRules(), fetchServices(), fetchProviders()]);
   // Support ?service_id=X deep-link from ServiceEdit pricing rule card
   const qsid = route.query.service_id;
   if (qsid) {

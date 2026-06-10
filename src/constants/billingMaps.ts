@@ -128,9 +128,40 @@ export const providerFilterOptions = [
   ...Object.entries(providerLabels).map(([value, label]) => ({ label, value })),
 ];
 
-export const providerFormOptions = Object.entries(providerLabels).map(
-  ([value, label]) => ({ label, value }),
-);
+// Non-LLM billing entities (object storage / vector DB) that are billed but
+// are NOT rows in the llm_provider table. They must stay selectable in the
+// pricing form alongside the live LLM providers.
+export const NON_LLM_BILLING_PROVIDERS = ["cos", "vikingdb", "dashvector"];
+
+export interface ProviderLike {
+  name: string;
+  display_name?: string;
+}
+
+// Build pricing-form 供应商 options from the live llm_provider list (so any
+// provider created via admin「新增供应商」appears automatically), merged with
+// the non-LLM billing entities above. A curated label wins; otherwise fall back
+// to the provider's display_name, then its raw name.
+export function buildProviderFormOptions(
+  liveProviders: ProviderLike[],
+): { label: string; value: string }[] {
+  const seen = new Set<string>();
+  const options: { label: string; value: string }[] = [];
+  for (const p of liveProviders) {
+    if (!p.name || seen.has(p.name)) continue;
+    seen.add(p.name);
+    options.push({
+      label: providerLabels[p.name] || p.display_name || p.name,
+      value: p.name,
+    });
+  }
+  for (const name of NON_LLM_BILLING_PROVIDERS) {
+    if (seen.has(name)) continue;
+    seen.add(name);
+    options.push({ label: providerLabels[name] || name, value: name });
+  }
+  return options;
+}
 
 // 操作筛选选项
 export const operationFilterOptions = [
