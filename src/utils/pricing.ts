@@ -37,6 +37,8 @@ export function billingModeLabel(rule: PricingRule): string {
   return "免费";
 }
 
+// NOTE: the returned class names must match the .pricing-badge--* rules in
+// ServiceEdit.vue's <style scoped>.
 export function billingModeCss(rule: PricingRule): string {
   if (
     (rule.input_price_per_mtok ?? 0) > 0 ||
