@@ -14,6 +14,7 @@ import {
 } from "@/api/ai";
 import type { ProviderDTO } from "@/types/ai";
 import { getPricingRulesApi, type PricingRule } from "@/api/billing";
+import { formatPrice, billingModeLabel, billingModeCss } from "@/utils/pricing";
 import type {
   AIServiceDetail,
   RouteDTO,
@@ -611,53 +612,6 @@ async function submitAddRoute() {
   } finally {
     addRouteSaving.value = false;
   }
-}
-
-// ====== Pricing helpers ======
-
-function formatPrice(rule: PricingRule): string {
-  if (rule.price_per_call && rule.price_per_call > 0) {
-    return `¥${rule.price_per_call} / 次`;
-  }
-  const inp = rule.input_price_per_mtok ?? 0;
-  const out = rule.output_price_per_mtok ?? 0;
-  if (inp > 0 || out > 0) {
-    return `输入 ¥${inp} / 输出 ¥${out} (per Mtok)`;
-  }
-  if (rule.price_per_gb && rule.price_per_gb > 0) {
-    return `¥${rule.price_per_gb} / GB`;
-  }
-  return "—";
-}
-
-/** Returns the billing mode label based on which price fields are non-zero. */
-function billingModeLabel(rule: PricingRule): string {
-  if (
-    (rule.input_price_per_mtok ?? 0) > 0 ||
-    (rule.output_price_per_mtok ?? 0) > 0
-  ) {
-    return "按量计费";
-  }
-  if ((rule.price_per_call ?? 0) > 0) {
-    return "按次计费";
-  }
-  if ((rule.price_per_gb ?? 0) > 0) {
-    return "按量计费";
-  }
-  return "未配置";
-}
-
-function billingModeCss(rule: PricingRule): string {
-  if (
-    (rule.input_price_per_mtok ?? 0) > 0 ||
-    (rule.output_price_per_mtok ?? 0) > 0
-  ) {
-    return "pricing-badge--token";
-  }
-  if ((rule.price_per_call ?? 0) > 0) {
-    return "pricing-badge--call";
-  }
-  return "pricing-badge--flat";
 }
 
 /**
