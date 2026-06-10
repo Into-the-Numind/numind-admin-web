@@ -67,6 +67,9 @@ describe("billingModeCss", () => {
     expect(billingModeCss(rule({ price_per_call: 0.01 }))).toBe(
       "pricing-badge--call",
     );
+    expect(billingModeCss(rule({ price_per_gb: 0.5 }))).toBe(
+      "pricing-badge--flat",
+    );
   });
 });
 
@@ -77,5 +80,6 @@ describe("formatPrice", () => {
     expect(
       formatPrice(rule({ input_price_per_mtok: 1, output_price_per_mtok: 3 })),
     ).toBe("输入 ¥1 / 输出 ¥3 (per Mtok)");
+    expect(formatPrice(rule({ price_per_gb: 1.5 }))).toBe("¥1.5 / GB");
   });
 });
