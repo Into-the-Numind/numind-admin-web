@@ -1685,6 +1685,11 @@ onMounted(loadData);
   color: #92400e;
 }
 
+.pricing-badge--free {
+  background: #dcfce7;
+  color: #166534;
+}
+
 .pricing-summary {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
