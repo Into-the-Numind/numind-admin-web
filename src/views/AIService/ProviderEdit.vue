@@ -21,7 +21,10 @@ const router = useRouter();
 const route = useRoute();
 const toast = useToast();
 
-const isNew = computed(() => route.params.id === "new");
+// The create route /ai-providers/new (name AIProviderCreate) is param-less,
+// so route.params.id is undefined there — treat a missing id as create mode.
+// The `=== "new"` branch keeps working if `new` ever flows through the :id param.
+const isNew = computed(() => !route.params.id || route.params.id === "new");
 const providerId = computed(() => (isNew.value ? 0 : Number(route.params.id)));
 
 const loading = ref(false);
