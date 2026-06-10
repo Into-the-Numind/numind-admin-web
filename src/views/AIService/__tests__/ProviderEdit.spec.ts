@@ -12,23 +12,15 @@
  * These tests pin the corrected behaviour: on the create route the component
  * must NOT fetch a provider, and on an edit route it must fetch by numeric id.
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { mount, flushPromises } from "@vue/test-utils";
-import { createRouter, createWebHistory } from "vue-router";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { mount, flushPromises, type VueWrapper } from "@vue/test-utils";
+import { createRouter, createWebHistory, type Router } from "vue-router";
 
-const getProviderApi = vi.fn(async (id: number) => ({
-  id,
-  name: "dmxapi",
-  display_name: "DMXAPI",
-  base_url: "https://www.dmxapi.cn/v1",
-  api_key: "****DP25",
-  is_active: true,
-  created_at: "2026-04-10T02:03:40+08:00",
-  updated_at: "2026-04-10T02:03:40+08:00",
-}));
+// Hoisted so the spy is available inside the (hoisted) vi.mock factory.
+const { getProviderApi } = vi.hoisted(() => ({ getProviderApi: vi.fn() }));
 
 vi.mock("@/api/ai", () => ({
-  getProviderApi: (id: number) => getProviderApi(id),
+  getProviderApi,
   createProviderApi: vi.fn(async () => ({})),
   updateProviderApi: vi.fn(async () => ({})),
   testProviderConnectionApi: vi.fn(async () => ({ success: true })),
@@ -41,7 +33,7 @@ import ProviderEdit from "../ProviderEdit.vue";
 
 // Router mirrors the real provider routes: a dedicated param-less `/new`
 // route plus the `:id` edit route — both rendering ProviderEdit.
-function makeRouter() {
+function makeRouter(): Router {
   return createRouter({
     history: createWebHistory(),
     routes: [
@@ -61,34 +53,50 @@ function makeRouter() {
   });
 }
 
-async function mountAt(path: string) {
-  const router = makeRouter();
-  router.push(path);
+let wrapper: VueWrapper | null = null;
+
+async function mountAt(path: string, router = makeRouter()) {
+  await router.push(path);
   await router.isReady();
-  const wrapper = mount(ProviderEdit, {
+  wrapper = mount(ProviderEdit, {
     global: { plugins: [router] },
     attachTo: document.body,
   });
   await flushPromises();
-  return wrapper;
+  return { wrapper, router };
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
+  getProviderApi.mockResolvedValue({
+    id: 1,
+    name: "dmxapi",
+    display_name: "DMXAPI",
+    base_url: "https://www.dmxapi.cn/v1",
+    api_key: "****DP25",
+    is_active: true,
+    created_at: "2026-04-10T02:03:40+08:00",
+    updated_at: "2026-04-10T02:03:40+08:00",
+  });
+});
+
+afterEach(() => {
+  wrapper?.unmount();
+  wrapper = null;
   document.body.innerHTML = "";
 });
 
 describe("ProviderEdit create flow (regression: /providers/NaN)", () => {
   it("does NOT fetch a provider on the param-less /ai-providers/new route", async () => {
-    const wrapper = await mountAt("/ai-providers/new");
+    await mountAt("/ai-providers/new");
 
     // Core assertion: the create page must never call getProviderApi.
     // Before the fix this fired getProviderApi(NaN) → GET /providers/NaN → 400.
     expect(getProviderApi).not.toHaveBeenCalled();
 
     // And it must render in create mode, not edit mode.
-    expect(wrapper.text()).toContain("新增 AI 供应商");
-    expect(wrapper.text()).not.toContain("编辑 AI 供应商");
+    expect(wrapper!.text()).toContain("新增 AI 供应商");
+    expect(wrapper!.text()).not.toContain("编辑 AI 供应商");
   });
 
   it("fetches the provider by numeric id on the /ai-providers/:id edit route", async () => {
@@ -99,5 +107,22 @@ describe("ProviderEdit create flow (regression: /providers/NaN)", () => {
     // Never NaN.
     const arg = getProviderApi.mock.calls[0][0];
     expect(Number.isNaN(arg)).toBe(false);
+  });
+
+  it("does NOT re-fetch with NaN when navigating edit → create in the same instance", async () => {
+    // The component is reused across routes; the `watch(() => route.params.id)`
+    // re-runs loadData on navigation. Edit→create must skip the fetch, not NaN.
+    const { router } = await mountAt("/ai-providers/7");
+    expect(getProviderApi).toHaveBeenCalledTimes(1);
+
+    await router.push("/ai-providers/new");
+    await flushPromises();
+
+    // No additional fetch fired for the create route…
+    expect(getProviderApi).toHaveBeenCalledTimes(1);
+    // …and certainly never with NaN.
+    for (const [arg] of getProviderApi.mock.calls) {
+      expect(Number.isNaN(arg)).toBe(false);
+    }
   });
 });
