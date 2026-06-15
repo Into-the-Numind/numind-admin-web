@@ -36,8 +36,8 @@ async function handleLogin() {
   <div class="login-page">
     <div class="login-card">
       <div class="login-header">
-        <div class="login-logo">N</div>
-        <h1 class="login-title">莫小派管理后台</h1>
+        <div class="login-logo">有数AI</div>
+        <h1 class="login-title">有数AI管理后台</h1>
         <p class="login-subtitle">Numind Admin Dashboard</p>
       </div>
 
@@ -111,17 +111,18 @@ async function handleLogin() {
   margin-bottom: var(--space-8);
 }
 
+/* org-branding：logo "N" 方块 → "有数AI" 文字 wordmark（pill 样式自适应宽度） */
 .login-logo {
-  width: 40px;
-  height: 40px;
-  background: var(--primary);
-  color: var(--on-primary);
-  border-radius: var(--radius-sm);
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  padding: 6px 16px;
+  background: var(--primary);
+  color: var(--on-primary);
+  border-radius: var(--radius-sm);
   font-weight: 700;
   font-size: var(--text-lg);
+  letter-spacing: 0.04em;
   margin-bottom: var(--space-4);
 }
 
