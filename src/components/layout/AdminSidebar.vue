@@ -25,6 +25,7 @@ import {
   Landmark,
   Activity,
   ShieldCheck,
+  Bell,
 } from "lucide-vue-next";
 
 const props = defineProps<{ collapsed: boolean }>();
@@ -144,6 +145,13 @@ const navItems = [
     label: "合规规则",
     icon: ShieldCheck,
     path: "/compliance-rules",
+  },
+  // notification-center: announcement / survey management (T6a)
+  {
+    name: "announcement-list",
+    label: "公告管理",
+    icon: Bell,
+    path: "/announcements",
   },
 ];
 
