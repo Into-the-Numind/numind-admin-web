@@ -163,6 +163,32 @@ describe("useAnnouncementStore", () => {
     expect(s.list[0].status).toBe("published");
   });
 
+  it("update calls api, sets current, and syncs the in-list row", async () => {
+    const updated = { ...mockDetail, title: "x" };
+    vi.mocked(api.updateAnnouncementApi).mockResolvedValue(updated);
+    const s = useAnnouncementStore();
+    s.list = [{ ...mockBrief, title: "系统维护通知" }];
+    const r = await s.update(1, { title: "x" });
+    expect(api.updateAnnouncementApi).toHaveBeenCalledWith(1, { title: "x" });
+    expect(r.title).toBe("x");
+    expect(s.current?.title).toBe("x");
+    expect(s.list[0].title).toBe("x");
+    expect(s.saving).toBe(false);
+  });
+
+  it("archive calls api and syncs the in-list status", async () => {
+    const archived = { ...mockDetail, status: "archived" };
+    vi.mocked(api.archiveAnnouncementApi).mockResolvedValue(archived);
+    const s = useAnnouncementStore();
+    s.list = [{ ...mockBrief, status: "published" }];
+    const r = await s.archive(1);
+    expect(api.archiveAnnouncementApi).toHaveBeenCalledWith(1);
+    expect(r.status).toBe("archived");
+    expect(s.current?.status).toBe("archived");
+    expect(s.list[0].status).toBe("archived");
+    expect(s.saving).toBe(false);
+  });
+
   it("remove is optimistic: filters list locally", async () => {
     vi.mocked(api.deleteAnnouncementApi).mockResolvedValue({ deleted: true });
     const s = useAnnouncementStore();

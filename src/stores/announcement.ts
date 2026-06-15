@@ -54,6 +54,12 @@ export const useAnnouncementStore = defineStore("announcement", () => {
   const responses = ref<ResponseRow[]>([]);
   const responsesTotal = ref(0);
 
+  // --- Dedicated loading flags (avoid flicker collisions with fetchList) ---
+  const statsLoading = ref(false);
+  const readersLoading = ref(false);
+  const surveyLoading = ref(false);
+  const responsesLoading = ref(false);
+
   // --- Getters ---
   const isEmpty = computed(() => !loading.value && list.value.length === 0);
 
@@ -101,6 +107,9 @@ export const useAnnouncementStore = defineStore("announcement", () => {
       const detail = await createAnnouncementApi(payload);
       current.value = detail;
       return detail;
+    } catch (e) {
+      error.value = (e as Error).message;
+      throw e;
     } finally {
       saving.value = false;
     }
@@ -116,6 +125,9 @@ export const useAnnouncementStore = defineStore("announcement", () => {
       current.value = detail;
       syncListRow(detail);
       return detail;
+    } catch (e) {
+      error.value = (e as Error).message;
+      throw e;
     } finally {
       saving.value = false;
     }
@@ -128,6 +140,9 @@ export const useAnnouncementStore = defineStore("announcement", () => {
       current.value = detail;
       syncListRow(detail);
       return detail;
+    } catch (e) {
+      error.value = (e as Error).message;
+      throw e;
     } finally {
       saving.value = false;
     }
@@ -140,6 +155,9 @@ export const useAnnouncementStore = defineStore("announcement", () => {
       current.value = detail;
       syncListRow(detail);
       return detail;
+    } catch (e) {
+      error.value = (e as Error).message;
+      throw e;
     } finally {
       saving.value = false;
     }
@@ -152,13 +170,16 @@ export const useAnnouncementStore = defineStore("announcement", () => {
       // Optimistic local mutation
       list.value = list.value.filter((a) => a.id !== id);
       total.value = Math.max(0, total.value - 1);
+    } catch (e) {
+      error.value = (e as Error).message;
+      throw e;
     } finally {
       saving.value = false;
     }
   }
 
   async function fetchStats(id: number): Promise<StatsDTO> {
-    loading.value = true;
+    statsLoading.value = true;
     error.value = null;
     try {
       const res = await getStatsApi(id);
@@ -168,12 +189,12 @@ export const useAnnouncementStore = defineStore("announcement", () => {
       error.value = (e as Error).message || "加载失败";
       throw e;
     } finally {
-      loading.value = false;
+      statsLoading.value = false;
     }
   }
 
   async function fetchReaders(id: number, params: ReadersParams = {}) {
-    loading.value = true;
+    readersLoading.value = true;
     error.value = null;
     try {
       const res = await getReadersApi(id, {
@@ -187,14 +208,14 @@ export const useAnnouncementStore = defineStore("announcement", () => {
       error.value = (e as Error).message || "加载失败";
       throw e;
     } finally {
-      loading.value = false;
+      readersLoading.value = false;
     }
   }
 
   async function fetchSurveyResults(
     id: number,
   ): Promise<SurveyResultsResponse> {
-    loading.value = true;
+    surveyLoading.value = true;
     error.value = null;
     try {
       const res = await getSurveyResultsApi(id);
@@ -204,12 +225,12 @@ export const useAnnouncementStore = defineStore("announcement", () => {
       error.value = (e as Error).message || "加载失败";
       throw e;
     } finally {
-      loading.value = false;
+      surveyLoading.value = false;
     }
   }
 
   async function fetchResponses(id: number, params: ResponsesParams = {}) {
-    loading.value = true;
+    responsesLoading.value = true;
     error.value = null;
     try {
       const res = await getResponsesApi(id, {
@@ -223,7 +244,7 @@ export const useAnnouncementStore = defineStore("announcement", () => {
       error.value = (e as Error).message || "加载失败";
       throw e;
     } finally {
-      loading.value = false;
+      responsesLoading.value = false;
     }
   }
 
@@ -264,6 +285,10 @@ export const useAnnouncementStore = defineStore("announcement", () => {
     surveyResults.value = null;
     responses.value = [];
     responsesTotal.value = 0;
+    statsLoading.value = false;
+    readersLoading.value = false;
+    surveyLoading.value = false;
+    responsesLoading.value = false;
   }
 
   return {
@@ -282,6 +307,10 @@ export const useAnnouncementStore = defineStore("announcement", () => {
     surveyResults,
     responses,
     responsesTotal,
+    statsLoading,
+    readersLoading,
+    surveyLoading,
+    responsesLoading,
     // getters
     isEmpty,
     // actions

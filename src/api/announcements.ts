@@ -18,7 +18,7 @@ export interface QuestionDTO {
   required: boolean;
   options?: string[] | null;
   rating_max?: number | null;
-  rating_style?: string | null;
+  rating_style?: RatingStyle | null;
 }
 
 // Question payload when creating/updating an announcement.
