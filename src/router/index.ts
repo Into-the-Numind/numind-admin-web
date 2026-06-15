@@ -194,6 +194,30 @@ const router = createRouter({
           component: () => import("@/views/compliance/ComplianceRuleForm.vue"),
           meta: { title: "编辑合规规则" },
         },
+        // notification-center: announcement / survey management (T6a)
+        {
+          path: "announcements",
+          name: "announcement-list",
+          component: () =>
+            import("@/views/announcement/AnnouncementListView.vue"),
+          meta: { title: "公告管理" },
+        },
+        {
+          path: "announcements/new",
+          name: "announcement-new",
+          component: () =>
+            import("@/views/announcement/AnnouncementFormView.vue"),
+          meta: { title: "新建公告" },
+        },
+        {
+          path: "announcements/:id/edit",
+          name: "announcement-edit",
+          component: () =>
+            import("@/views/announcement/AnnouncementFormView.vue"),
+          meta: { title: "编辑公告" },
+        },
+        // NOTE: announcements/:id/stats route is registered in T6b
+        // (AnnouncementStatsView). The list view navigates there by path string.
       ],
     },
     {
