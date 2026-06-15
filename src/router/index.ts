@@ -216,8 +216,13 @@ const router = createRouter({
             import("@/views/announcement/AnnouncementFormView.vue"),
           meta: { title: "编辑公告" },
         },
-        // NOTE: announcements/:id/stats route is registered in T6b
-        // (AnnouncementStatsView). The list view navigates there by path string.
+        {
+          path: "announcements/:id/stats",
+          name: "announcement-stats",
+          component: () =>
+            import("@/views/announcement/AnnouncementStatsView.vue"),
+          meta: { title: "公告统计" },
+        },
       ],
     },
     {
