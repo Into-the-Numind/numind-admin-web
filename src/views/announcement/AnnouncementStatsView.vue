@@ -181,7 +181,20 @@ watch(responsePage, loadResponses);
 
 // ---------- init ----------
 async function loadAll() {
+  // Clear stale section state BEFORE fetching so loading skeletons show
+  // instead of the previously-viewed announcement's data when the route :id
+  // changes and this component instance is reused (P1 review fix).
+  store.current = null;
+  store.stats = null;
+  store.readers = [];
+  store.readersTotal = 0;
+  store.surveyResults = null;
+  store.responses = [];
+  store.responsesTotal = 0;
   headerError.value = null;
+  readersError.value = null;
+  surveyError.value = null;
+  responsesError.value = null;
   // Detail first (need type to decide whether to load survey sections).
   try {
     await store.get(id.value);
@@ -210,6 +223,14 @@ function goBack() {
 }
 
 onMounted(loadAll);
+
+// Re-load when the route :id changes while this component instance is reused
+// (e.g. /announcements/1/stats → /announcements/2/stats). immediate:false +
+// onMounted above = exactly one fetch on initial mount, no double-fetch (P1).
+// We intentionally do NOT reset readerPage/responsePage here — mutating them
+// would trigger their own watchers and double-fetch the reader/response lists
+// on top of loadAll()'s direct calls. loadAll() fetches at the current page.
+watch(id, loadAll);
 </script>
 
 <template>
@@ -297,6 +318,7 @@ onMounted(loadAll);
       </div>
 
       <DataTable
+        v-if="!readersError"
         :columns="readerColumns"
         :data="readers"
         :loading="readersLoading"
@@ -365,6 +387,7 @@ onMounted(loadAll);
         </div>
 
         <DataTable
+          v-if="!responsesError"
           :columns="responseColumns"
           :data="responses"
           :loading="responsesLoading"

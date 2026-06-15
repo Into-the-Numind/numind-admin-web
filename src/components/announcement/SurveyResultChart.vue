@@ -111,10 +111,11 @@ const hasTextData = computed(() => textAnswers.value.length > 0);
     >
       <p v-if="!hasOptionData" class="survey-chart__empty">暂无答卷</p>
       <ul v-else class="bar-list">
-        <li v-for="(opt, i) in optionCounts" :key="i" class="bar-row">
+        <li v-for="opt in optionCounts" :key="opt.option" class="bar-row">
           <div class="bar-row__label" :title="opt.option">{{ opt.option }}</div>
           <div class="bar-row__track">
             <div
+              v-show="opt.count > 0"
               class="bar-row__fill"
               :style="{ width: optionWidth(opt.count) + '%' }"
             />
@@ -143,6 +144,7 @@ const hasTextData = computed(() => textAnswers.value.length > 0);
             </div>
             <div class="bar-row__track">
               <div
+                v-show="d.count > 0"
                 class="bar-row__fill bar-row__fill--rating"
                 :style="{ width: ratingWidth(d.count) + '%' }"
               />
@@ -162,7 +164,7 @@ const hasTextData = computed(() => textAnswers.value.length > 0);
     <div v-else-if="question.question_type === 'text'">
       <p v-if="!hasTextData" class="survey-chart__empty">暂无答卷</p>
       <ul v-else class="text-list">
-        <li v-for="(a, i) in textAnswers" :key="i" class="text-item">
+        <li v-for="a in textAnswers" :key="a.user_id" class="text-item">
           <div class="text-item__meta">
             <span class="text-item__name">{{ a.nickname || "匿名用户" }}</span>
             <span class="text-item__time">{{
