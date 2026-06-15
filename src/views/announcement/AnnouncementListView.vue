@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // AnnouncementListView — admin announcement/survey list (notification-center spec §6.2).
 // Hard rules: DataTable layout, ConfirmModal for archive/delete, 4 async states.
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import { storeToRefs } from "pinia";
 import { useAnnouncementStore } from "@/stores/announcement";
@@ -74,9 +74,11 @@ async function executeConfirm() {
       await pendingAction.value();
       pendingAction.value = null;
     }
-    confirmVisible.value = false;
   } catch (e) {
     toast.error((e as Error).message || "操作失败");
+  } finally {
+    // Close the modal even when the action throws (toast surfaces the error).
+    confirmVisible.value = false;
   }
 }
 
@@ -126,7 +128,8 @@ function statusLabel(status: string): string {
 }
 
 function readRateText(row: AdminAnnouncementBrief): string {
-  if (!row.target_count || row.target_count === 0) return "–";
+  // Guard both denominator (no targets) and a null/undefined read_count to avoid "NaN%".
+  if (!row.target_count || row.read_count == null) return "–";
   const pct = (row.read_count / row.target_count) * 100;
   return `${pct.toFixed(1)}%`;
 }
@@ -180,10 +183,6 @@ function handleDelete(row: AdminAnnouncementBrief) {
     },
   );
 }
-
-const isEmpty = computed(
-  () => !loading.value && !error.value && list.value.length === 0,
-);
 </script>
 
 <template>
@@ -332,12 +331,6 @@ const isEmpty = computed(
       </template>
     </DataTable>
 
-    <!-- Empty CTA -->
-    <div v-if="isEmpty" class="empty-cta">
-      <p class="empty-cta__text">还没有任何公告</p>
-      <AppButton variant="primary" @click="goNew">+ 新建第一条公告</AppButton>
-    </div>
-
     <!-- Confirm modal (archive / delete — always danger) -->
     <ConfirmModal
       :visible="confirmVisible"
@@ -483,18 +476,5 @@ const isEmpty = computed(
 
 .status-badge--archived {
   color: var(--warning);
-}
-
-.empty-cta {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-4);
-  padding: var(--space-10) var(--space-6);
-}
-
-.empty-cta__text {
-  font-size: var(--text-sm);
-  color: var(--on-surface-variant);
 }
 </style>

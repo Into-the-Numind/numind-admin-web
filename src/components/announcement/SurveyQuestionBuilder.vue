@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // SurveyQuestionBuilder — v-model is a QuestionInput[] (notification-center spec §6.2).
 // Client-side hints only; backend is the validation authority (spec §3.2 create rules).
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 import {
   ArrowUp,
   ArrowDown,
@@ -19,6 +19,17 @@ import type {
   RatingStyle,
 } from "@/api/announcements";
 
+// Local working shape: QuestionInput plus a non-persisted stable render key.
+// `_key` is NEVER emitted — commit() strips it so the public v-model contract
+// stays clean QuestionInput[] (backend ignores unknown fields, but we don't rely on that).
+type LocalQuestion = QuestionInput & { _key?: number };
+
+// Module-level monotonic counter for stable :key (crypto/Date may be unavailable in test envs).
+let _seq = 0;
+function nextKey(): number {
+  return ++_seq;
+}
+
 interface Props {
   modelValue: QuestionInput[];
   disabled?: boolean;
@@ -32,6 +43,37 @@ const emit = defineEmits<{
   "update:modelValue": [value: QuestionInput[]];
 }>();
 
+// `working` is the local source of truth: each entry carries a stable `_key` that
+// travels with the question across edits/reorders, so Vue moves DOM nodes on
+// reorder instead of remounting (which would lose input focus). `_key` is NEVER
+// emitted — commit() strips it, keeping the v-model contract a clean QuestionInput[].
+const working = ref<LocalQuestion[]>([]);
+
+// Strip `_key` from a local question, yielding a clean QuestionInput.
+function strip(q: LocalQuestion): QuestionInput {
+  const clean = { ...q };
+  delete (clean as { _key?: number })._key;
+  return clean;
+}
+
+// Signature of `working` as clean QuestionInput[] — used to detect self-originated
+// updates (where modelValue just echoes back what we emitted) so we don't rebuild
+// `working` and churn keys mid-edit.
+function workingSignature(): string {
+  return JSON.stringify(working.value.map(strip));
+}
+
+watch(
+  () => props.modelValue,
+  (incoming) => {
+    // Self-echo: parent re-passed exactly what we emitted → keep local keys.
+    if (JSON.stringify(incoming) === workingSignature()) return;
+    // External change (e.g. parent loaded data) → rebuild with fresh keys.
+    working.value = incoming.map((q) => ({ ...q, _key: nextKey() }));
+  },
+  { immediate: true, deep: true },
+);
+
 const questionTypeOptions = [
   { value: "single", label: "单选" },
   { value: "multi", label: "多选" },
@@ -44,44 +86,48 @@ const ratingStyleOptions = [
   { value: "nps", label: "NPS" },
 ];
 
-// Emit a fresh array (immutable update) with order_index re-normalised.
-function commit(next: QuestionInput[]) {
-  const reindexed = next.map((q, i) => ({ ...q, order_index: i }));
-  emit("update:modelValue", reindexed);
+// Apply a local mutation: update `working` (keeping each entry's stable `_key`)
+// with order_index re-normalised, then emit the stripped clean QuestionInput[].
+// Updating `working` first means the subsequent modelValue echo is recognised as
+// self-originated (see watch), so keys never churn on edit/reorder.
+function commit(next: LocalQuestion[]) {
+  working.value = next.map((q, i) => ({ ...q, order_index: i }));
+  emit("update:modelValue", working.value.map(strip));
 }
 
-function makeQuestion(): QuestionInput {
+function makeQuestion(): LocalQuestion {
   return {
-    order_index: props.modelValue.length,
+    order_index: working.value.length,
     question_type: "single",
     title: "",
     required: true,
     options: ["", ""],
     rating_max: null,
     rating_style: null,
+    _key: nextKey(),
   };
 }
 
 function addQuestion() {
   if (props.disabled) return;
-  commit([...props.modelValue, makeQuestion()]);
+  commit([...working.value, makeQuestion()]);
 }
 
 function removeQuestion(idx: number) {
   if (props.disabled) return;
-  commit(props.modelValue.filter((_, i) => i !== idx));
+  commit(working.value.filter((_, i) => i !== idx));
 }
 
 function moveUp(idx: number) {
   if (props.disabled || idx <= 0) return;
-  const next = [...props.modelValue];
+  const next = [...working.value];
   [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
   commit(next);
 }
 
 function moveDown(idx: number) {
-  if (props.disabled || idx >= props.modelValue.length - 1) return;
-  const next = [...props.modelValue];
+  if (props.disabled || idx >= working.value.length - 1) return;
+  const next = [...working.value];
   [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
   commit(next);
 }
@@ -89,7 +135,7 @@ function moveDown(idx: number) {
 // Patch one question and re-emit; resets shape-specific fields when type changes.
 function patchQuestion(idx: number, patch: Partial<QuestionInput>) {
   if (props.disabled) return;
-  const next = props.modelValue.map((q, i) =>
+  const next = working.value.map((q, i) =>
     i === idx ? { ...q, ...patch } : q,
   );
   commit(next);
@@ -99,14 +145,14 @@ function onTypeChange(idx: number, raw: string | number) {
   const type = String(raw) as QuestionType;
   const base: Partial<QuestionInput> = { question_type: type };
   if (type === "single" || type === "multi") {
-    const existing = props.modelValue[idx].options;
+    const existing = working.value[idx].options;
     base.options = existing && existing.length >= 2 ? existing : ["", ""];
     base.rating_max = null;
     base.rating_style = null;
   } else if (type === "rating") {
     base.options = null;
-    base.rating_max = props.modelValue[idx].rating_max ?? 5;
-    base.rating_style = (props.modelValue[idx].rating_style ??
+    base.rating_max = working.value[idx].rating_max ?? 5;
+    base.rating_style = (working.value[idx].rating_style ??
       "star") as RatingStyle;
   } else {
     // text
@@ -139,14 +185,14 @@ function updateRatingStyle(idx: number, value: string | number) {
 // --- Option editing (single / multi) ---
 function addOption(idx: number) {
   if (props.disabled) return;
-  const opts = [...(props.modelValue[idx].options ?? [])];
+  const opts = [...(working.value[idx].options ?? [])];
   opts.push("");
   patchQuestion(idx, { options: opts });
 }
 
 function removeOption(qIdx: number, optIdx: number) {
   if (props.disabled) return;
-  const opts = (props.modelValue[qIdx].options ?? []).filter(
+  const opts = (working.value[qIdx].options ?? []).filter(
     (_, i) => i !== optIdx,
   );
   patchQuestion(qIdx, { options: opts });
@@ -157,7 +203,7 @@ function updateOption(
   optIdx: number,
   value: string | number | null,
 ) {
-  const opts = [...(props.modelValue[qIdx].options ?? [])];
+  const opts = [...(working.value[qIdx].options ?? [])];
   opts[optIdx] = String(value ?? "");
   patchQuestion(qIdx, { options: opts });
 }
@@ -183,7 +229,7 @@ function ratingWarning(q: QuestionInput): string | null {
   return null;
 }
 
-const hasQuestions = computed(() => props.modelValue.length > 0);
+const hasQuestions = computed(() => working.value.length > 0);
 </script>
 
 <template>
@@ -198,8 +244,8 @@ const hasQuestions = computed(() => props.modelValue.length > 0);
     </p>
 
     <div
-      v-for="(q, idx) in modelValue"
-      :key="idx"
+      v-for="(q, idx) in working"
+      :key="q._key ?? idx"
       class="question-card"
       :class="{ 'question-card--disabled': disabled }"
     >
@@ -218,7 +264,7 @@ const hasQuestions = computed(() => props.modelValue.length > 0);
           <button
             type="button"
             class="icon-btn"
-            :disabled="disabled || idx === modelValue.length - 1"
+            :disabled="disabled || idx === working.length - 1"
             aria-label="下移"
             @click="moveDown(idx)"
           >

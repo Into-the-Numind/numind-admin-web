@@ -50,6 +50,24 @@ describe("SurveyQuestionBuilder", () => {
     expect(emitted[0].order_index).toBe(0);
     expect(emitted[0].options).toEqual(["", ""]);
     expect(emitted[0].required).toBe(true);
+    // The local stable render key must NOT leak into the v-model payload.
+    expect(emitted[0]).not.toHaveProperty("_key");
+  });
+
+  it("never emits the internal _key field (clean QuestionInput[] contract)", async () => {
+    const modelValue = [
+      makeQuestion({ title: "first", order_index: 0 }),
+      makeQuestion({ title: "second", order_index: 1 }),
+    ];
+    const wrapper = mount(SurveyQuestionBuilder, { props: { modelValue } });
+    // Trigger a reorder (the operation that relies on stable keys).
+    const downBtn = wrapper.findAll('[aria-label="下移"]')[0];
+    await downBtn.trigger("click");
+
+    const emitted = lastEmit(wrapper);
+    for (const q of emitted) {
+      expect(q).not.toHaveProperty("_key");
+    }
   });
 
   it("removes a question and re-indexes the rest", async () => {

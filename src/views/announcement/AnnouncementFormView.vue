@@ -98,46 +98,76 @@ function validateAll(): boolean {
 }
 
 // ---------- Datetime helpers ----------
-// <input type="datetime-local"> needs "YYYY-MM-DDTHH:mm"; backend wants RFC3339.
-function toLocalInput(iso: string | null): string {
-  if (!iso) return "";
-  // Trim to minutes; keep "YYYY-MM-DDTHH:mm".
-  return iso.slice(0, 16);
+// <input type="datetime-local"> uses a wall-clock string "YYYY-MM-DDTHH:mm" (no tz).
+// Backend binds expires_at as *time.Time → requires RFC3339 with a timezone offset.
+// Round-trip: the input value is interpreted as the browser's LOCAL time on save,
+// stored as UTC RFC3339, then converted back to local for display on reload — so the
+// user always sees the same wall-clock time they picked.
+function pad2(n: number): string {
+  return String(n).padStart(2, "0");
 }
 
+// Backend UTC RFC3339 (e.g. "2026-07-01T06:30:00Z") → local "YYYY-MM-DDTHH:mm".
+function toLocalInput(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  return (
+    `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}` +
+    `T${pad2(d.getHours())}:${pad2(d.getMinutes())}`
+  );
+}
+
+// Local input "YYYY-MM-DDTHH:mm" → UTC RFC3339 (e.g. "2026-07-01T06:30:00.000Z").
 function toBackendDatetime(local: string): string | null {
   if (!local) return null;
-  // Append seconds if missing; let backend parse local time.
-  return local.length === 16 ? `${local}:00` : local;
+  const d = new Date(local); // parsed as local time
+  if (isNaN(d.getTime())) return null;
+  return d.toISOString();
 }
 
 // ---------- Loading (edit mode) ----------
-onMounted(async () => {
-  if (isEditMode.value && announcementId.value !== null) {
-    try {
-      const detail = await store.get(announcementId.value);
-      form.value = {
-        type: detail.type,
-        title: detail.title,
-        content: detail.content,
-        is_important: detail.is_important,
-        expires_at: toLocalInput(detail.expires_at),
-      };
-      questions.value = (detail.questions ?? []).map((q) => ({
-        order_index: q.order_index,
-        question_type: q.question_type,
-        title: q.title,
-        required: q.required,
-        options: q.options ?? null,
-        rating_max: q.rating_max ?? null,
-        rating_style: q.rating_style ?? null,
-      }));
-    } catch {
-      toast.error(store.currentError ?? "加载失败");
-    }
+async function loadDetail() {
+  if (!isEditMode.value || announcementId.value === null) return;
+  try {
+    const detail = await store.get(announcementId.value);
+    form.value = {
+      type: detail.type,
+      title: detail.title,
+      content: detail.content,
+      is_important: detail.is_important,
+      expires_at: toLocalInput(detail.expires_at),
+    };
+    questions.value = (detail.questions ?? []).map((q) => ({
+      order_index: q.order_index,
+      question_type: q.question_type,
+      title: q.title,
+      required: q.required,
+      options: q.options ?? null,
+      rating_max: q.rating_max ?? null,
+      rating_style: q.rating_style ?? null,
+    }));
+    // Snapshot AFTER populate so isDirty starts false.
+    savedSnapshot.value = snapshot();
+  } catch {
+    toast.error(store.currentError ?? "加载失败");
   }
-  // Snapshot AFTER populate so isDirty starts false.
-  savedSnapshot.value = snapshot();
+}
+
+// Retry button handler — awaits in try/catch so the @click never leaves an
+// unhandled rejection (store already records the error for the banner).
+async function retryLoad() {
+  try {
+    await loadDetail();
+  } catch {
+    // store.currentError drives the banner; nothing else to do here.
+  }
+}
+
+onMounted(async () => {
+  await loadDetail();
+  // For create mode (loadDetail no-ops) snapshot the empty form so isDirty starts false.
+  if (!isEditMode.value) savedSnapshot.value = snapshot();
 });
 
 // ---------- Dirty-leave guard ----------
@@ -250,7 +280,7 @@ function handleCancel() {
         v-if="announcementId"
         variant="ghost"
         size="sm"
-        @click="store.get(announcementId)"
+        @click="retryLoad"
       >
         重试
       </AppButton>
