@@ -5,6 +5,10 @@ interface Props {
   loading?: boolean;
   disabled?: boolean;
   block?: boolean;
+  // 默认 "button"：放进 <form> 里的按钮不会意外触发表单提交（原生 <button> 默认是
+  // submit，曾导致"取消"按钮一点就提交/创建重复，见 notif-acceptance-fixes）。
+  // 需要提交按钮时显式写 type="submit"（全站 3 个表单的提交按钮均已显式标注）。
+  type?: "button" | "submit" | "reset";
 }
 
 withDefaults(defineProps<Props>(), {
@@ -13,12 +17,14 @@ withDefaults(defineProps<Props>(), {
   loading: false,
   disabled: false,
   block: false,
+  type: "button",
 });
 </script>
 
 <template>
   <button
     class="app-btn"
+    :type="type"
     :class="[
       `app-btn--${variant}`,
       `app-btn--${size}`,
