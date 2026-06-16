@@ -44,7 +44,7 @@ const columns: Column[] = [
   { key: "status", title: "状态", width: "100px" },
   { key: "published_at", title: "发布时间", width: "150px" },
   { key: "read_rate", title: "已读率", width: "100px", align: "right" },
-  { key: "actions", title: "操作", width: "260px" },
+  { key: "actions", title: "操作", width: "300px", align: "right" },
 ];
 
 // ---------- Confirm modal (archive / delete) ----------
@@ -412,9 +412,12 @@ function handleDelete(row: AdminAnnouncementBrief) {
 
 .row-actions {
   display: flex;
-  gap: var(--space-1);
-  justify-content: center;
+  align-items: center;
+  gap: var(--space-2);
+  /* 右对齐单行排布；列宽 300px 足够 4 个 sm 按钮，wrap 仅作窄屏兜底（兜底时也右对齐不错位）。 */
   flex-wrap: wrap;
+  justify-content: flex-end;
+  white-space: nowrap;
 }
 
 .text-muted {
