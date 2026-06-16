@@ -398,6 +398,7 @@ function handleCancel() {
         </AppButton>
         <AppButton
           variant="secondary"
+          type="button"
           :disabled="store.saving"
           @click="handleCancel"
         >
