@@ -52,6 +52,7 @@ const selectedMonth = ref<string>(currentMonth());
 // is treated as an "开通"; the grant duration is shown separately via durationLabel.
 function eventTypeLabel(d: GrantDetail): string {
   if (d.product_type === "trial") return "开通体验";
+  if (d.product_type === "weekly") return "开通周度";
   if (d.product_type === "monthly") return "开通 Pro";
   // Fallback for booster (currently not returned by backend, but keep for future use)
   return "购买加量包";
@@ -71,11 +72,13 @@ const columns: Column[] = [
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function productLabel(d: GrantDetail): string {
   if (d.product_type === "trial") return "体验包";
+  if (d.product_type === "weekly") return "周度会员";
   return "Pro 订阅";
 }
 
 function durationLabel(d: GrantDetail): string {
   if (d.product_type === "trial") return "3 天";
+  if (d.product_type === "weekly") return "7 天";
   return `${d.months} 个月`;
 }
 
@@ -137,7 +140,7 @@ function exportCSV() {
     "子账户",
     "事件类型",
     "产品",
-    "月数/数量",
+    "时长/数量",
     "金额(元)",
   ];
 
@@ -148,7 +151,7 @@ function exportCSV() {
       d.child_username,
       eventTypeLabel(d),
       productLabel(d),
-      d.months,
+      durationLabel(d),
       (d.amount_cents / 100).toFixed(2),
     ]),
   );

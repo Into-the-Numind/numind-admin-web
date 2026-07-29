@@ -10,7 +10,7 @@ import request from "./request";
 export interface GrantDetail {
   child_user_id: number;
   child_username: string;
-  product_type: "trial" | "monthly";
+  product_type: "trial" | "weekly" | "monthly";
   months: number;
   amount_cents: number;
   granted_at: string;
