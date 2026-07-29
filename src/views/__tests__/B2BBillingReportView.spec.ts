@@ -109,6 +109,32 @@ const renewalReport = {
   ],
 };
 
+const weeklyReport = {
+  ...sampleReport,
+  month: "2026-04",
+  total_amount_cents: 2500,
+  total_events_count: 1,
+  active_parents_count: 1,
+  by_parent: [
+    {
+      parent_user_id: 404,
+      parent_username: "weekly_corp",
+      grants_count: 1,
+      amount_cents: 2500,
+      details: [
+        {
+          child_user_id: 801,
+          child_username: "erin",
+          product_type: "weekly" as const,
+          months: 0,
+          amount_cents: 2500,
+          granted_at: "2026-04-21T12:00:00Z",
+        },
+      ],
+    },
+  ],
+};
+
 async function mountView() {
   setActivePinia(createPinia());
   const wrapper = mount(B2BBillingReportView, {
@@ -206,6 +232,21 @@ describe("B2BBillingReportView — event-type mapping", () => {
     await flushPromises();
     expect(wrapper.html()).toContain("开通 Pro"); // months=12 → "开通 Pro" (annual opening)
     expect(wrapper.html()).not.toContain("续费"); // no more months-based 续费 guess
+  });
+
+  it("maps weekly grants to '开通周度', '周度会员', and '7 天'", async () => {
+    (billApi.getB2BBillingReport as ReturnType<typeof vi.fn>).mockResolvedValue(
+      weeklyReport,
+    );
+    const wrapper = await mountView();
+
+    await wrapper.find('[data-test="row-expand-404"]').trigger("click");
+    await flushPromises();
+
+    const html = wrapper.html();
+    expect(html).toContain("开通周度");
+    expect(html).toContain("周度会员");
+    expect(html).toContain("7 天");
   });
 });
 
